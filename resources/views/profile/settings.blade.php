@@ -130,8 +130,9 @@
                         <div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">JPG or PNG, max 2MB</div>
                     </div>
                 </div>
-                <div class="form-row">
+                <div class="form-row-3">
                     <div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="profile-first-name" value="{{ $user->first_name }}"/></div>
+                    <div class="form-group"><label class="form-label">Middle Name</label><input class="form-control" id="profile-middle-name" value="{{ $user->middle_name }}"/></div>
                     <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="profile-last-name" value="{{ $user->last_name }}"/></div>
                 </div>
                 <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="profile-email" type="email" value="{{ $user->email }}"/></div>
@@ -191,6 +192,7 @@ function previewAvatar(input) {
 function saveProfile() {
     const formData = new FormData();
     formData.append('first_name', document.getElementById('profile-first-name').value);
+    formData.append('middle_name', document.getElementById('profile-middle-name').value);
     formData.append('last_name', document.getElementById('profile-last-name').value);
     formData.append('email', document.getElementById('profile-email').value);
     formData.append('bio', document.getElementById('profile-bio').value);

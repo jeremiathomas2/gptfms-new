@@ -42,7 +42,7 @@
             </table>
         </div>
     </div>
-    <div style="margin-top: 20px;">
+    <div class="pagination-container">
         {{ $projects->links() }}
     </div>
 </div>

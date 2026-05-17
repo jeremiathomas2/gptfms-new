@@ -5,8 +5,24 @@
 @section('content')
 <div class="page active" id="page-admin">
     <div class="section-header">
-        <div><div class="section-title">Admin Panel</div><div class="section-sub">Manage users, roles, and system configuration</div></div>
-        <button class="btn btn-primary btn-sm" onclick="toast('User invited!','<i class=\'uil uil-user-plus\'></i>')"><i class="uil uil-user-plus me-1"></i> Invite User</button>
+        <div><div class="section-title">User Management</div><div class="section-sub">Manage users, roles, and system configuration</div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <div class="dropdown-wrap" style="position:relative;">
+                <button class="btn btn-outline btn-sm" onclick="toggleDropdown('template-dropdown')"><i class="uil uil-file-download me-1"></i> Templates</button>
+                <div id="template-dropdown" class="dropdown" style="width:200px; right:0; top:35px;">
+                    <a href="{{ route('users.template', 'student') }}" class="notif-item"><i class="uil uil-graduation-cap me-2"></i> Student Template</a>
+                    <a href="{{ route('users.template', 'supervisor') }}" class="notif-item"><i class="uil uil-briefcase-alt me-2"></i> Supervisor Template</a>
+                </div>
+            </div>
+            <div class="dropdown-wrap" style="position:relative;">
+                <button class="btn btn-outline btn-sm" onclick="toggleDropdown('import-dropdown')"><i class="uil uil-file-upload me-1"></i> Import CSV</button>
+                <div id="import-dropdown" class="dropdown" style="width:200px; right:0; top:35px;">
+                    <a href="#" class="notif-item" onclick="openImportModal('student')"><i class="uil uil-graduation-cap me-2"></i> Import Students</a>
+                    <a href="#" class="notif-item" onclick="openImportModal('supervisor')"><i class="uil uil-briefcase-alt me-2"></i> Import Supervisors</a>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="toast('Add user modal…','<i class=\'uil uil-user-plus\'></i>')"><i class="uil uil-user-plus me-1"></i> Add User</button>
+        </div>
     </div>
     <div class="grid-4" style="margin-bottom:18px">
         <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Total Users</div><div class="stat-value">{{ $totalUsers }}</div></div><div class="stat-icon si-blue"><i class="uil uil-users-alt"></i></div></div></div>
@@ -15,46 +31,61 @@
         <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Admins</div><div class="stat-value">{{ $admins }}</div></div><div class="stat-icon si-red"><i class="uil uil-wrench"></i></div></div></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden">
-        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
-            <input class="form-control" style="max-width:280px;padding:7px 12px" placeholder="🔍 Search users by name or email…"/>
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;">
+            <div class="navbar-search" style="flex:1; max-width:300px;">
+                <span><i class="uil uil-search"></i></span>
+                <input id="user-search" class="form-control" style="border:none;padding:7px 0;" placeholder="Search users by name, email or REG…"/>
+            </div>
+            <select id="filter-role" class="form-control" style="max-width:150px;">
+                <option value="all">All Roles</option>
+                <option value="student">Student</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="admin">Admin</option>
+            </select>
+            <select id="filter-status" class="form-control" style="max-width:150px;">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+            </select>
         </div>
         <div class="table-wrap">
             <table>
                 <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Group</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
-                <tbody>
-                    @foreach($users as $u)
-                    <tr>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <div class="sidebar-avatar" style="width:28px;height:28px;font-size:11px;border-radius:7px">{{ $u->initials }}</div>
-                                <strong>{{ $u->name }}</strong>
-                            </div>
-                        </td>
-                        <td>{{ $u->email }}</td>
-                        <td>
-                            @php $role = $u->roles->first()->name ?? 'N/A'; @endphp
-                            <span class="badge {{ $role === 'admin' ? 'badge-red' : ($role === 'supervisor' ? 'badge-amber' : 'badge-blue') }}">
-                                {{ ucfirst($role) }}
-                            </span>
-                        </td>
-                        <td>{{ $u->members->first()->group->name ?? '—' }}</td>
-                        <td><span class="badge badge-green">{{ ucfirst($u->status ?? 'active') }}</span></td>
-                        <td>{{ $u->created_at->format('M d') }}</td>
-                        <td>
-                            <div style="display:flex;gap:4px">
-                                <button class="btn btn-ghost btn-sm" onclick="showUserPreview({{ $u->id }})" title="View Profile"><i class="uil uil-eye"></i></button>
-                                <button class="btn btn-ghost btn-sm" onclick="toast('Edit user modal…','<i class=\'uil uil-edit\'></i>')"><i class="uil uil-edit"></i></button>
-                                <button class="btn btn-ghost btn-sm" onclick="toast('User deactivated','<i class=\'uil uil-user-times\'></i>')"><i class="uil uil-user-times"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
+                <tbody id="users-table-body">
+                    @include('admin._users_table')
                 </tbody>
             </table>
         </div>
-        <div style="padding: 15px;">
+        <div class="pagination-container" id="pagination-links">
             {{ $users->links() }}
         </div>
+    </div>
+</div>
+
+<!-- ═══════════════ CSV IMPORT MODAL ═══════════════ -->
+<div class="modal-overlay" id="modal-csv-import">
+    <div class="modal" style="max-width: 450px;">
+        <div class="modal-header">
+            <span class="modal-title" id="csv-import-title">Import Users</span>
+            <span class="modal-close" onclick="closeModal('modal-csv-import')"><i class="uil uil-multiply"></i></span>
+        </div>
+        <form id="csvImportForm" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="type" id="import-type">
+            <div style="padding: 20px; border: 2px dashed var(--border); border-radius: 12px; text-align: center; margin-bottom: 20px;" id="drop-zone">
+                <i class="uil uil-cloud-upload" style="font-size: 40px; color: var(--primary); display: block; margin-bottom: 10px;"></i>
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 5px;">Click to upload or drag and drop</div>
+                <div style="font-size: 11px; color: var(--text-muted);">CSV file only (Max 5MB)</div>
+                <input type="file" name="file" id="csv-file-input" style="display: none;" accept=".csv">
+            </div>
+            <div id="file-name-display" style="font-size: 12px; font-weight: 600; color: var(--secondary); margin-bottom: 15px; display: none; text-align: center;"></div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('modal-csv-import')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Start Import</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -74,6 +105,130 @@
 </div>
 
 <script>
+// Real-time Search and Filters
+const userSearch = document.getElementById('user-search');
+const filterRole = document.getElementById('filter-role');
+const filterStatus = document.getElementById('filter-status');
+const tableBody = document.getElementById('users-table-body');
+const paginationLinks = document.getElementById('pagination-links');
+
+let searchTimeout;
+
+function fetchUsers(page = 1) {
+    const search = userSearch.value;
+    const role = filterRole.value;
+    const status = filterStatus.value;
+
+    fetch(`/users/search?search=${search}&role=${role}&status=${status}&page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+            tableBody.innerHTML = data.html;
+            paginationLinks.innerHTML = data.pagination;
+            
+            // Re-attach pagination link listeners
+            attachPaginationListeners();
+        });
+}
+
+function attachPaginationListeners() {
+    paginationLinks.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = new URL(this.href);
+            const page = url.searchParams.get('page');
+            fetchUsers(page);
+        });
+    });
+}
+
+userSearch.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => fetchUsers(), 300);
+});
+
+filterRole.addEventListener('change', () => fetchUsers());
+filterStatus.addEventListener('change', () => fetchUsers());
+
+// CSV Import
+function openImportModal(type) {
+    document.getElementById('import-type').value = type;
+    document.getElementById('csv-import-title').innerText = `Import ${type.charAt(0).toUpperCase() + type.slice(1)}s`;
+    openModal('modal-csv-import');
+}
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('csv-file-input');
+const fileNameDisplay = document.getElementById('file-name-display');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--primary)';
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = 'var(--border)';
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--border)';
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        updateFileName();
+    }
+});
+
+fileInput.addEventListener('change', updateFileName);
+
+function updateFileName() {
+    if (fileInput.files.length) {
+        fileNameDisplay.innerText = `Selected: ${fileInput.files[0].name}`;
+        fileNameDisplay.style.display = 'block';
+    }
+}
+
+document.getElementById('csvImportForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="uil uil-spinner-alt uil-spin"></i> Importing...';
+
+    fetch("{{ route('users.import') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Start Import';
+        
+        if (data.success) {
+            toast(data.message, '<i class="uil uil-check-circle"></i>');
+            closeModal('modal-csv-import');
+            fetchUsers();
+            if (data.errors && data.errors.length > 0) {
+                console.warn('Import warnings:', data.errors);
+                toast(`Completed with ${data.errors.length} warnings.`, '<i class="uil uil-exclamation-circle"></i>');
+            }
+        } else {
+            toast(data.message || 'Import failed', '<i class="uil uil-exclamation-triangle"></i>');
+        }
+    })
+    .catch(error => {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Start Import';
+        console.error('Error:', error);
+        toast('An error occurred during import.', '<i class="uil uil-exclamation-triangle"></i>');
+    });
+});
+
 function showUserPreview(userId) {
     openModal('modal-user-preview');
     const content = document.getElementById('user-preview-content');

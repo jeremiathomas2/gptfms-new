@@ -49,7 +49,7 @@
         </div>
     </div>
     
-    <div style="margin-top: 20px;">
+    <div class="pagination-container">
         {{ $groups->links() }}
     </div>
 </div>

@@ -31,6 +31,35 @@ class AdminController extends Controller
         return view('admin.index', compact('users', 'totalUsers', 'students', 'supervisors', 'admins'));
     }
 
+    public function search(Request $request)
+    {
+        $query = User::with(['roles', 'members.group']);
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('registration_number', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->has('role') && $request->input('role') !== 'all') {
+            $query->role($request->input('role'));
+        }
+
+        if ($request->has('status') && $request->input('status') !== 'all') {
+            $query->where('status', $request->input('status'));
+        }
+
+        $users = $query->paginate(10);
+
+        return response()->json([
+            'html' => view('admin._users_table', compact('users'))->render(),
+            'pagination' => (string) $users->links()
+        ]);
+    }
+
     public function showUser(User $user)
     {
         $user->load(['roles', 'members.group', 'studentProfile', 'supervisorProfile', 'studentSkillsSurvey']);

@@ -10,7 +10,7 @@
 <div class="page active" id="page-dashboard">
     <div class="section-header">
         <div>
-            <div class="section-title">Good morning, {{ explode(' ', $userName)[0] }} <i class="uil uil-sun" style="color: #f59e0b;"></i></div>
+            <div class="section-title"><span id="greeting-text">Good morning</span>, {{ explode(' ', $userName)[0] }} <span id="greeting-icon"><i class="uil uil-sun" style="color: #f59e0b;"></i></span></div>
             <div class="section-sub">Here's what's happening with the system today.</div>
         </div>
         <div style="display:flex;gap:8px">
@@ -127,3 +127,27 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const greetingText = document.getElementById('greeting-text');
+    const greetingIcon = document.getElementById('greeting-icon');
+    const hour = new Date().getHours();
+
+    let greeting = "Good evening";
+    let icon = '<i class="uil uil-moon" style="color: #8b5cf6;"></i>';
+
+    if (hour >= 5 && hour < 12) {
+        greeting = "Good morning";
+        icon = '<i class="uil uil-sun" style="color: #f59e0b;"></i>';
+    } else if (hour >= 12 && hour < 18) {
+        greeting = "Good afternoon";
+        icon = '<i class="uil uil-cloud-sun" style="color: #fbbf24;"></i>';
+    }
+
+    if (greetingText) greetingText.innerText = greeting;
+    if (greetingIcon) greetingIcon.innerHTML = icon;
+});
+</script>
+@endpush

@@ -21,6 +21,7 @@ class ProfileController extends Controller
         
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'bio' => 'nullable|string|max:1000',
@@ -30,8 +31,9 @@ class ProfileController extends Controller
 
         $data = [
             'first_name' => $validated['first_name'],
+            'middle_name' => $validated['middle_name'],
             'last_name' => $validated['last_name'],
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+            'name' => trim($validated['first_name'] . ' ' . ($validated['middle_name'] ? $validated['middle_name'] . ' ' : '') . $validated['last_name']),
             'email' => $validated['email'],
             'bio' => $validated['bio'],
             'skills' => $validated['skills'],

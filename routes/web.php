@@ -12,6 +12,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\GroupSettingsController;
+use App\Http\Controllers\UserImportController;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -54,6 +55,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/settings/security', [ProfileController::class, 'updateSecurity'])->name('settings.security');
 
     Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::get('/users/search', [AdminController::class, 'search'])->name('users.search');
+    Route::get('/users/template/{type}', [UserImportController::class, 'downloadTemplate'])->name('users.template');
+    Route::post('/users/import', [UserImportController::class, 'import'])->name('users.import');
 
     Route::get('/analytics', function () {
         return view('analytics.index');
