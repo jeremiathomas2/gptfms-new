@@ -56,10 +56,14 @@
     let refreshInterval = null;
 
     document.addEventListener('DOMContentLoaded', function() {
-        loadChats();
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoType = urlParams.get('type');
+        const autoId = urlParams.get('id');
+        
+        loadChats(autoType, autoId);
     });
 
-    function loadChats() {
+    function loadChats(autoType = null, autoId = null) {
         fetch('/messages/chats')
             .then(response => response.json())
             .then(data => {
@@ -71,17 +75,34 @@
                     return;
                 }
 
+                let targetItem = null;
+
                 // Add Groups
                 data.groups.forEach(group => {
-                    const item = createChatItem('group', group.id, group.name, 'Group Chat', group.name.substring(0, 2).toUpperCase());
+                    const initials = group.name.substring(0, 2).toUpperCase();
+                    const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
                     chatList.appendChild(item);
+                    
+                    if (autoType === 'group' && autoId == group.id) {
+                        targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item };
+                    }
                 });
 
                 // Add Private Chats
                 data.users.forEach(user => {
-                    const item = createChatItem('private', user.id, user.name, 'Private Message', user.initials || user.name.substring(0, 2).toUpperCase());
+                    const initials = user.initials || user.name.substring(0, 2).toUpperCase();
+                    const item = createChatItem('private', user.id, user.name, 'Private Message', initials);
                     chatList.appendChild(item);
+
+                    if (autoType === 'private' && autoId == user.id) {
+                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                    }
                 });
+
+                // Auto-select if requested
+                if (targetItem) {
+                    selectChat(targetItem.type, targetItem.id, targetItem.name, targetItem.initials, targetItem.element);
+                }
             });
     }
 
@@ -92,7 +113,7 @@
             div.classList.add('active');
         }
         
-        div.onclick = () => selectChat(type, id, name, initials);
+        div.onclick = (e) => selectChat(type, id, name, initials, div);
         
         div.innerHTML = `
             <div class="chat-av" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">${initials}</div>
@@ -104,12 +125,23 @@
         return div;
     }
 
-    function selectChat(type, id, name, initials) {
+    function selectChat(type, id, name, initials, element = null) {
         activeChat = { type, id, name, initials };
         
         // UI Updates
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (element) {
+            element.classList.add('active');
+        } else {
+            // Find element if not provided (e.g. from auto-select)
+            const items = document.querySelectorAll('.chat-item');
+            items.forEach(item => {
+                // This is a bit brittle but works for now as we don't have many chats
+                if (item.querySelector('.chat-name').innerText === name) {
+                    item.classList.add('active');
+                }
+            });
+        }
         
         document.getElementById('no-chat-selected').style.display = 'none';
         document.getElementById('chat-main').style.display = 'flex';

@@ -91,32 +91,115 @@
                 </h3>
             </div>
             
-            <div style="text-align: center; padding: 30px 0;">
-                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Time Remaining</div>
-                <div style="font-size: 48px; font-weight: 800; color: var(--text); font-family: monospace; background: var(--bg-alt); display: inline-block; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border);">
-                    {{ $settings->formatted_remaining_time ?? '00:00:00' }}
+                <div style="text-align: center; padding: 30px 0;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Time Remaining</div>
+                    <div id="countdown-timer" style="font-size: 48px; font-weight: 800; color: var(--text); font-family: monospace; background: var(--bg-alt); display: inline-block; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border);">
+                        {{ $settings->formatted_remaining_time ?? '00:00:00' }}
+                    </div>
+                    
+                    <div style="margin-top: 24px;">
+                        <span id="countdown-status-badge" class="badge {{ $settings->isCountdownRunning() ? 'badge-green' : 'badge-gray' }}" style="padding: 6px 12px; font-size: 12px;">
+                            <i class="uil {{ $settings->isCountdownRunning() ? 'uil-play' : 'uil-stop-circle' }} me-1"></i>
+                            <span id="countdown-status-text">{{ $settings->isCountdownRunning() ? 'Countdown Active' : 'Countdown Inactive' }}</span>
+                        </span>
+                    </div>
                 </div>
-                
-                <div style="margin-top: 24px;">
-                    <span class="badge {{ $settings->isCountdownRunning() ? 'badge-green' : 'badge-gray' }}" style="padding: 6px 12px; font-size: 12px;">
-                        <i class="uil {{ $settings->isCountdownRunning() ? 'uil-play' : 'uil-stop-circle' }} me-1"></i>
-                        {{ $settings->isCountdownRunning() ? 'Countdown Active' : 'Countdown Inactive' }}
-                    </span>
-                </div>
-            </div>
 
-            <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
-                <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Quick Actions</h4>
-                <div style="display: grid; gap: 10px;">
-                    <button class="btn btn-outline btn-sm" style="width: 100%; text-align: left; justify-content: flex-start;">
-                        <i class="uil uil-sync me-2"></i> Reset Countdown
-                    </button>
-                    <button class="btn btn-outline btn-sm" style="width: 100%; text-align: left; justify-content: flex-start; color: var(--danger); border-color: var(--danger-light);">
-                        <i class="uil uil-exclamation-triangle me-2"></i> Trigger Auto-Formation Now
-                    </button>
+                <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
+                    <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Quick Actions</h4>
+                    <div style="display: grid; gap: 10px;">
+                        <button type="button" class="btn btn-primary btn-sm" id="start-countdown-btn" style="width: 100%;" {{ $settings->isCountdownRunning() ? 'disabled' : '' }} onclick="startCountdown()">
+                            <i class="uil uil-play me-2"></i> Start Countdown
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" style="width: 100%; text-align: left; justify-content: flex-start; color: var(--danger); border-color: var(--danger-light);" onclick="triggerAutoFormation()">
+                            <i class="uil uil-exclamation-triangle me-2"></i> Trigger Auto-Formation Now
+                        </button>
+                    </div>
                 </div>
-            </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    let countdownInterval = null;
+    let endTime = null;
+
+    @if($settings->isCountdownRunning())
+        endTime = new Date("{{ $settings->countdown_end_time->toIso8601String() }}");
+        startTimer();
+    @endif
+
+    function startCountdown() {
+        fetch("{{ route('groups.settings.start') }}", {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                toast(data.message, '<i class="uil uil-play"></i>');
+                endTime = new Date(data.end_time);
+                document.getElementById('start-countdown-btn').disabled = true;
+                
+                const badge = document.getElementById('countdown-status-badge');
+                badge.className = 'badge badge-green';
+                document.getElementById('countdown-status-text').innerText = 'Countdown Active';
+                badge.querySelector('i').className = 'uil uil-play me-1';
+                
+                startTimer();
+            }
+        });
+    }
+
+    function startTimer() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        countdownInterval = setInterval(() => {
+            const now = new Date();
+            const diff = endTime - now;
+            
+            if (diff <= 0) {
+                clearInterval(countdownInterval);
+                document.getElementById('countdown-timer').innerText = '00:00:00';
+                triggerAutoFormation();
+                return;
+            }
+            
+            const hours = Math.floor(diff / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            
+            document.getElementById('countdown-timer').innerText = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    function triggerAutoFormation() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        toast('Triggering auto-formation...', '<i class="uil uil-spinner-alt uil-spin"></i>');
+        
+        fetch("{{ route('groups.settings.auto_form') }}", {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                toast(data.message, '<i class="uil uil-check-circle"></i>');
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                toast(data.message || 'Formation failed', '<i class="uil uil-exclamation-triangle"></i>');
+            }
+        });
+    }
+</script>
+@endpush

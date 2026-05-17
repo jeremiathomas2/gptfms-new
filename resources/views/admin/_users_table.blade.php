@@ -2,12 +2,8 @@
 <tr>
     <td>
         <div style="display:flex;align-items:center;gap:8px">
-            <div class="sidebar-avatar" style="width:28px;height:28px;font-size:11px;border-radius:7px">
-                @if($u->avatar)
-                    <img src="{{ asset($u->avatar) }}" style="width:100%;height:100%;border-radius:7px;object-fit:cover;">
-                @else
-                    {{ $u->initials }}
-                @endif
+            <div class="sidebar-avatar" style="width:28px;height:28px;font-size:11px;border-radius:7px; background: {{ $u->avatar ? 'url('.asset($u->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
+                {{ $u->avatar ? '' : $u->initials }}
             </div>
             <strong>{{ $u->name }}</strong>
         </div>
@@ -25,8 +21,8 @@
     <td>
         <div style="display:flex;gap:4px">
             <button class="btn btn-ghost btn-sm" onclick="showUserPreview({{ $u->id }})" title="View Profile"><i class="uil uil-eye"></i></button>
-            <button class="btn btn-ghost btn-sm" onclick="toast('Edit user modal…','<i class=\'uil uil-edit\'></i>')"><i class="uil uil-edit"></i></button>
-            <button class="btn btn-ghost btn-sm" onclick="toast('User deactivated','<i class=\'uil uil-user-times\'></i>')"><i class="uil uil-user-times"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditModal({{ $u->id }})" title="Edit User"><i class="uil uil-edit"></i></button>
+            <button class="btn btn-ghost btn-sm text-danger" onclick="deleteUser({{ $u->id }}, '{{ $u->name }}')" title="Delete User"><i class="uil uil-trash-alt"></i></button>
         </div>
     </td>
 </tr>

@@ -149,7 +149,7 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
                 <span class="nav-icon"><i class="uil uil-chart-pie-alt"></i></span><span class="nav-label">Dashboard</span>
             </a>
             @role('student')
-            <a href="{{ route('groups') }}" class="nav-item {{ request()->routeIs('groups') ? 'active' : '' }}">
+            <a href="{{ route('my_group') }}" class="nav-item {{ request()->routeIs('my_group') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">My Group</span>
             </a>
             <a href="{{ route('survey.index') }}" class="nav-item {{ request()->routeIs('survey.index') ? 'active' : '' }}">
@@ -161,12 +161,12 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             <a href="{{ route('supervisor') }}" class="nav-item {{ request()->routeIs('supervisor') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-graduation-cap"></i></span><span class="nav-label">Supervisor Hub</span>
             </a>
+            <a href="{{ route('my_group') }}" class="nav-item {{ request()->routeIs('my_group') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">My Groups</span>
+            </a>
             @endrole
 
             <div class="sidebar-section-label">Work</div>
-            <a href="{{ route('groups.settings') }}" class="nav-item {{ request()->routeIs('groups.settings') ? 'active' : '' }}">
-                <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">Group Settings</span>
-            </a>
             <a href="{{ route('projects') }}" class="nav-item {{ request()->routeIs('projects') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-folder"></i></span><span class="nav-label">Projects</span>
             </a>
@@ -192,6 +192,12 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             </a>
             <a href="{{ route('users') }}" class="nav-item {{ request()->routeIs('users') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-user-circle"></i></span><span class="nav-label">User Management</span>
+            </a>
+            <a href="{{ route('admin.groups') }}" class="nav-item {{ request()->routeIs('admin.groups') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">Group Management</span>
+            </a>
+            <a href="{{ route('groups.settings') }}" class="nav-item {{ request()->routeIs('groups.settings') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-cog"></i></span><span class="nav-label">Formation Settings</span>
             </a>
             @endrole
 

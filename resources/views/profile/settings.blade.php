@@ -9,7 +9,7 @@
 <div class="page active" id="page-settings">
     <div class="section-header">
         <div><div class="section-title">Settings</div><div class="section-sub">Customize your GPTFMS experience</div></div>
-        <button class="btn btn-primary btn-sm" onclick="toast('Settings saved!','<i class=\'uil uil-check-circle\'></i>')"><i class="uil uil-save me-1"></i> Save Changes</button>
+        <button class="btn btn-primary btn-sm" onclick="saveActiveSettings()"><i class="uil uil-save me-1"></i> Save Changes</button>
     </div>
     <div class="settings-grid" style="min-height:500px">
         <div class="settings-nav">
@@ -177,6 +177,20 @@
 
 @push('scripts')
 <script>
+function saveActiveSettings() {
+    const activeSection = document.querySelector('.settings-section.active');
+    if (!activeSection) return;
+    
+    const id = activeSection.id;
+    if (id === 'settings-profile') {
+        saveProfile();
+    } else if (id === 'settings-security') {
+        updatePassword();
+    } else {
+        toast('Settings saved locally', '<i class="uil uil-check-circle"></i>');
+    }
+}
+
 function previewAvatar(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
@@ -191,43 +205,57 @@ function previewAvatar(input) {
 
 function saveProfile() {
     const formData = new FormData();
-    formData.append('first_name', document.getElementById('profile-first-name').value);
-    formData.append('middle_name', document.getElementById('profile-middle-name').value);
-    formData.append('last_name', document.getElementById('profile-last-name').value);
-    formData.append('email', document.getElementById('profile-email').value);
-    formData.append('bio', document.getElementById('profile-bio').value);
-    formData.append('skills', document.getElementById('profile-skills').value);
+    const fields = {
+        'first_name': 'profile-first-name',
+        'middle_name': 'profile-middle-name',
+        'last_name': 'profile-last-name',
+        'email': 'profile-email',
+        'bio': 'profile-bio',
+        'skills': 'profile-skills'
+    };
+
+    for (const [key, id] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el) {
+            formData.append(key, el.value);
+        }
+    }
     
     const avatarInput = document.getElementById('profile-avatar-input');
-    if (avatarInput.files.length > 0) {
+    if (avatarInput && avatarInput.files.length > 0) {
         formData.append('avatar', avatarInput.files[0]);
     }
 
     fetch('{{ route('settings.profile') }}', {
         method: 'POST',
         headers: {
+            'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Validation failed');
+        }
+        return data;
+    })
     .then(result => {
-        if (result.message) {
-            toast(result.message, '<i class="uil uil-check-circle"></i>');
-            if (result.avatar_url) {
-                // Update other instances of the avatar if needed
-                document.querySelectorAll('.sidebar-avatar, .navbar-avatar').forEach(el => {
-                    if (el.tagName === 'DIV') {
-                        el.style.background = `url(${result.avatar_url}) center/cover`;
-                        el.innerHTML = '';
-                    }
-                });
-            }
+        toast(result.message || 'Profile updated!', '<i class="uil uil-check-circle"></i>');
+        if (result.avatar_url) {
+            // Update all instances of the avatar across the page
+            document.querySelectorAll('.sidebar-avatar, .navbar-avatar, #profile-avatar-container').forEach(el => {
+                if (el.tagName === 'DIV' || el.classList.contains('sidebar-avatar') || el.classList.contains('navbar-avatar')) {
+                    el.style.background = `url(${result.avatar_url}) center/cover`;
+                    el.innerHTML = '';
+                }
+            });
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        toast('Failed to update profile', '<i class="uil uil-exclamation-circle"></i>');
+        toast(error.message || 'Failed to update profile', '<i class="uil uil-exclamation-circle"></i>');
     });
 }
 

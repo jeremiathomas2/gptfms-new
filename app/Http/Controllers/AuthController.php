@@ -38,27 +38,84 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        // Validate registration data for GPTFMS system
+        $rules = [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string|max:20',
+            'gender' => 'required|in:male,female,other',
+            'role' => 'required|in:student,supervisor',
+            'password' => 'required|string|min:8|confirmed',
+            'terms' => 'accepted',
+        ];
+        
+        $messages = [
+            'first_name.required' => 'First name is required.',
+            'last_name.required' => 'Last name is required.',
+            'email.required' => 'Email address is required.',
+            'email.unique' => 'This email address is already registered.',
+            'phone.required' => 'Phone number is required.',
+            'gender.required' => 'Please select your gender.',
+            'role.required' => 'Please select your user type.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters long.',
+            'password.confirmed' => 'Password confirmation does not match.',
+            'terms.accepted' => 'You must accept the terms and conditions.'
+        ];
+        
+        // Add registration number validation only for students
+        if ($request->input('role') === 'student') {
+            $rules['registration_number'] = 'required|string|max:50|unique:users,registration_number';
+            $messages['registration_number.required'] = 'Registration number is required for students.';
+            $messages['registration_number.unique'] = 'This registration number is already registered.';
+        }
+        
+        $validated = $request->validate($rules, $messages);
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
+        try {
+            // Create user in database with GPTFMS requirements
+            $userData = [
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'gender' => $validated['gender'],
+                'password' => Hash::make($validated['password']),
+                'status' => 'active',
+                'last_login_ip' => $request->ip(),
+            ];
+            
+            // Add registration number only for students
+            if ($validated['role'] === 'student') {
+                $userData['registration_number'] = $validated['registration_number'];
+            } else {
+                // For supervisors, generate a unique registration number
+                $userData['registration_number'] = 'SUP_' . time() . '_' . rand(1000, 9999);
+            }
+            
+            $user = User::create($userData);
 
-        // Assign default role
-        $user->assignRole('student');
+            // Assign role using Spatie Permission package
+            $user->assignRole($validated['role']);
 
-        Auth::login($user);
+            Auth::login($user);
 
-        return redirect('/');
+            // Redirect students to survey, supervisors to profile completion
+            if ($validated['role'] === 'student') {
+                return redirect()->route('survey.index')
+                    ->with('success', 'Registration successful! Please complete the skills assessment survey.');
+            } else {
+                return redirect()->route('settings')
+                    ->with('success', 'Registration successful! Please complete your supervisor profile.');
+            }
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['registration' => 'Registration failed: ' . $e->getMessage()]);
+        }
     }
 
     public function logout(Request $request)

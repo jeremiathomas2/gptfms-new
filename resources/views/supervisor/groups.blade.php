@@ -1,61 +1,79 @@
 @extends('layouts.app')
 
-@section('breadcrumb', 'Groups')
+@section('breadcrumb', 'My Groups')
 
 @section('content')
-<div class="page active" id="page-groups">
+<div class="page active" id="page-supervisor-groups">
     <div class="section-header">
-        <div><div class="section-title">Group Management</div><div class="section-sub">Manage and monitor all project groups</div></div>
-        <div style="display:flex;gap:8px">
-            <button class="btn btn-outline btn-sm"><i class="uil uil-robot me-1"></i> Auto-Form Groups</button>
-            <button class="btn btn-primary btn-sm" onclick="openModal('modal-group')"><i class="uil uil-plus me-1"></i> Create Group</button>
+        <div>
+            <div class="section-title">Supervised Groups</div>
+            <div class="section-sub">Manage and monitor teams under your supervision</div>
         </div>
-    </div>
-    <div class="grid-3">
-        @foreach($groups as $group)
-        <div class="card" onclick="showGroupPreview({{ $group->id }})">
-            <div class="group-card-header">
-                <span class="group-name">{{ $group->name }}</span>
-                <span class="badge {{ $group->status === 'active' ? 'badge-green' : 'badge-amber' }}">{{ ucfirst($group->status) }}</span>
-            </div>
-            <div class="group-meta">{{ $group->project->course_code ?? 'N/A' }} · {{ $group->members->count() }} members</div>
-            <div class="avatar-group" style="margin-bottom:10px">
-                @foreach($group->members->take(3) as $member)
-                    <div class="av" title="{{ $member->user->name }}">{{ $member->user->initials }}</div>
-                @endforeach
-                @if($group->members->count() > 3)
-                    <div class="av">+{{ $group->members->count() - 3 }}</div>
-                @endif
-            </div>
-            <div class="skill-tags">
-                @php
-                    $skills = ['React', 'Node.js', 'PostgreSQL', 'Laravel', 'Python'];
-                    shuffle($skills);
-                @endphp
-                @foreach(array_slice($skills, 0, 3) as $skill)
-                    <span class="badge badge-blue">{{ $skill }}</span>
-                @endforeach
-            </div>
-            <div class="progress-wrap">
-                @php $progress = $group->project->progress_percentage ?? rand(10, 90); @endphp
-                <div class="progress-label"><span>Progress</span><span>{{ $progress }}%</span></div>
-                <div class="progress-bar"><div class="progress-fill" style="width:{{ $progress }}%"></div></div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto;">
-                <button class="btn btn-outline btn-sm" style="font-size: 11px;" onclick="showGroupDetails({{ $group->id }})">
-                    <i class="uil uil-eye me-1"></i> Details
-                </button>
-                <a href="{{ route('messages') }}?type=group&id={{ $group->id }}" class="btn btn-primary btn-sm" style="font-size: 11px;">
-                    <i class="uil uil-comments me-1"></i> Chat
-                </a>
-            </div>
-        </div>
-        @endforeach
     </div>
 
-    <div class="pagination-container">
-        {{ $groups->links() }}
-    </div>
+    @if($groups->isEmpty())
+        <div class="card" style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 48px; color: var(--text-muted); margin-bottom: 20px;">
+                <i class="uil uil-users-alt"></i>
+            </div>
+            <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 10px;">No Groups Assigned</h3>
+            <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto;">
+                You haven't been assigned to supervise any groups yet. Assignments happen during the auto-formation process.
+            </p>
+        </div>
+    @else
+        <div class="grid-3">
+            @foreach($groups as $group)
+            <div class="card" onclick="window.location.href='{{ route('groups') }}?id={{ $group->id }}'">
+                <div class="group-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; margin: 0;">{{ $group->name }}</h3>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ $group->project->course_code ?? 'N/A' }}</div>
+                    </div>
+                    <span class="badge badge-green">ACTIVE</span>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ $group->project->title ?? 'No project title' }}
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 8px 12px; background: var(--bg-alt); border-radius: 8px;">
+                    <div style="font-size: 12px; color: var(--text-muted);">Members</div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 14px; font-weight: 700; color: var(--primary);">{{ $group->members->count() }}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">/ {{ $group->max_members }}</span>
+                    </div>
+                </div>
+
+                <div class="avatar-group" style="margin-bottom: 15px;">
+                    @foreach($group->members->take(5) as $member)
+                        <div class="av" title="{{ $member->user->name }}" style="background: {{ $member->user->avatar ? 'url('.asset($member->user->avatar).') center/cover' : 'var(--primary)' }}">
+                            {{ $member->user->avatar ? '' : $member->user->initials }}
+                        </div>
+                    @endforeach
+                    @if($group->members->count() > 5)
+                        <div class="av">+{{ $group->members->count() - 5 }}</div>
+                    @endif
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto;">
+                    <button class="btn btn-outline btn-sm" style="font-size: 11px;" onclick="showGroupDetails({{ $group->id }})">
+                        <i class="uil uil-eye me-1"></i> Details
+                    </button>
+                    <a href="{{ route('messages') }}?type=group&id={{ $group->id }}" class="btn btn-primary btn-sm" style="font-size: 11px;">
+                        <i class="uil uil-comments me-1"></i> Chat
+                    </a>
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <div class="pagination-container">
+            {{ $groups->links() }}
+        </div>
+    @endif
 </div>
 
 <!-- ═══════════════ GROUP DETAILS MODAL ═══════════════ -->
@@ -90,7 +108,7 @@
                     <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--border);">
                         <div class="sidebar-avatar" style="width: 32px; height: 32px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
                         <div style="flex: 1;">
-                            <div style="font-size: 13px; font-weight: 700;">${m.user.name} ${m.user_id == {{ auth()->id() }} ? '<span style="color: var(--primary); font-size: 10px;">(You)</span>' : ''}</div>
+                            <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
                             <div style="font-size: 11px; color: var(--text-muted);">${m.user.registration_number || 'N/A'} · ${m.role.toUpperCase()}</div>
                         </div>
                         <div style="text-align: right;">

@@ -16,10 +16,62 @@ class GroupController extends Controller
         return view('groups.index', compact('groups'));
     }
 
+    public function myGroup()
+    {
+        $user = Auth::user();
+        
+        if ($user->hasRole('supervisor')) {
+            $groups = Group::where('supervisor_id', $user->id)->with(['members.user', 'project'])->paginate(9);
+            return view('supervisor.groups', compact('groups'));
+        }
+
+        $member = GroupMember::where('user_id', $user->id)
+            ->where('status', 'joined')
+            ->first();
+
+        $group = $member ? Group::with(['members.user', 'project', 'supervisor'])->find($member->group_id) : null;
+        
+        return view('student.my_group', compact('group'));
+    }
+
     public function show(Group $group)
     {
         $group->load(['members.user', 'project', 'creator', 'supervisor']);
-        return response()->json($group);
+        
+        // Add more context if needed, like project description or member specific details
+        return response()->json([
+            'id' => $group->id,
+            'name' => $group->name,
+            'status' => $group->status,
+            'max_members' => $group->max_members,
+            'description' => $group->description,
+            'created_at' => $group->created_at->format('M d, Y'),
+            'project' => $group->project ? [
+                'title' => $group->project->title,
+                'course_code' => $group->project->course_code,
+                'description' => $group->project->description,
+            ] : null,
+            'supervisor' => $group->supervisor ? [
+                'name' => $group->supervisor->name,
+                'email' => $group->supervisor->email,
+                'phone' => $group->supervisor->phone,
+                'avatar' => $group->supervisor->avatar,
+                'initials' => $group->supervisor->initials,
+            ] : null,
+            'members' => $group->members->map(function($member) {
+                return [
+                    'role' => $member->role,
+                    'user' => [
+                        'name' => $member->user->name,
+                        'email' => $member->user->email,
+                        'phone' => $member->user->phone,
+                        'avatar' => $member->user->avatar,
+                        'initials' => $member->user->initials,
+                        'registration_number' => $member->user->registration_number,
+                    ]
+                ];
+            }),
+        ]);
     }
 
     public function store(Request $request)
