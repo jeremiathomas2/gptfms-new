@@ -19,28 +19,65 @@ class MessageController extends Controller
     public function getChats()
     {
         $user = Auth::user();
+        $groups = collect();
+        $users = collect();
         
-        // Get group chats
-        $groups = $user->groupMemberships()->with('group')->get()->pluck('group');
-        
-        // Get private chats (users who have sent/received messages)
-        $privateChats = Message::where('sender_id', $user->id)
-            ->whereNull('group_id')
-            ->select('receiver_id as user_id')
-            ->union(
-                Message::where('receiver_id', $user->id)
-                ->whereNull('group_id')
-                ->select('sender_id as user_id')
-            )
-            ->get()
-            ->pluck('user_id')
-            ->unique();
+        if ($user->hasRole('student')) {
+            // Student: Only their own group
+            $membership = $user->groupMemberships()->where('status', 'joined')->with('group.supervisor')->first();
             
-        $users = User::whereIn('id', $privateChats)->get();
+            if ($membership && $membership->group) {
+                $group = $membership->group;
+                $groups->push($group);
+                
+                // Add group members (excluding self)
+                $memberIds = $group->members()->where('status', 'joined')->where('user_id', '!=', $user->id)->pluck('user_id');
+                $groupMembers = User::whereIn('id', $memberIds)->get();
+                $users = $users->concat($groupMembers);
+                
+                // Add supervisor
+                if ($group->supervisor) {
+                    $users->push($group->supervisor);
+                }
+            }
+        } elseif ($user->hasRole('supervisor')) {
+            // Supervisor: All supervised groups
+            $groups = $user->supervisedGroups()->with('members.user')->get();
+            
+            // All students in those groups
+            foreach ($groups as $group) {
+                foreach ($group->members as $member) {
+                    if ($member->user && $member->status === 'joined') {
+                        $student = $member->user;
+                        $student->group_name = $group->name; // Attach group name for the badge
+                        $users->push($student);
+                    }
+                }
+            }
+        } else {
+            // Admin or others: Existing logic (all groups and existing private chats)
+            $memberGroups = $user->groupMemberships()->with('group')->get()->pluck('group');
+            $supervisedGroups = $user->supervisedGroups()->get();
+            $groups = $memberGroups->concat($supervisedGroups)->unique('id')->filter();
+            
+            $privateChats = Message::where('sender_id', $user->id)
+                ->whereNull('group_id')
+                ->select('receiver_id as user_id')
+                ->union(
+                    Message::where('receiver_id', $user->id)
+                    ->whereNull('group_id')
+                    ->select('sender_id as user_id')
+                )
+                ->get()
+                ->pluck('user_id')
+                ->unique();
+                
+            $users = User::whereIn('id', $privateChats)->get();
+        }
 
         return response()->json([
-            'groups' => $groups,
-            'users' => $users
+            'groups' => $groups->values(),
+            'users' => $users->unique('id')->values()
         ]);
     }
 
@@ -49,6 +86,17 @@ class MessageController extends Controller
         $user = Auth::user();
         
         if ($type === 'group') {
+            $group = Group::findOrFail($id);
+            
+            // Authorization: Check if member OR supervisor OR admin
+            $isMember = $group->members()->where('user_id', $user->id)->exists();
+            $isSupervisor = $group->supervisor_id == $user->id;
+            $isAdmin = $user->hasRole('admin');
+            
+            if (!$isMember && !$isSupervisor && !$isAdmin) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            
             $messages = Message::where('group_id', $id)
                 ->with('sender')
                 ->orderBy('created_at', 'asc')
@@ -72,13 +120,26 @@ class MessageController extends Controller
             'target_id' => 'required|integer',
         ]);
 
+        $user = Auth::user();
+
         $messageData = [
-            'sender_id' => Auth::id(),
+            'sender_id' => $user->id,
             'content' => $validated['content'],
             'type' => 'text',
         ];
 
         if ($validated['type'] === 'group') {
+            $group = Group::findOrFail($validated['target_id']);
+            
+            // Authorization
+            $isMember = $group->members()->where('user_id', $user->id)->exists();
+            $isSupervisor = $group->supervisor_id == $user->id;
+            $isAdmin = $user->hasRole('admin');
+            
+            if (!$isMember && !$isSupervisor && !$isAdmin) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            
             $messageData['group_id'] = $validated['target_id'];
         } else {
             $messageData['receiver_id'] = $validated['target_id'];

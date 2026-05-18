@@ -13,7 +13,7 @@
     </div>
     <div class="grid-3">
         @foreach($groups as $group)
-        <div class="card" onclick="showGroupPreview({{ $group->id }})">
+        <div class="card" onclick="showGroupDetails({{ $group->id }})">
             <div class="group-card-header">
                 <span class="group-name">{{ $group->name }}</span>
                 <span class="badge {{ $group->status === 'active' ? 'badge-green' : 'badge-amber' }}">{{ ucfirst($group->status) }}</span>
@@ -42,10 +42,10 @@
                 <div class="progress-bar"><div class="progress-fill" style="width:{{ $progress }}%"></div></div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto;">
-                <button class="btn btn-outline btn-sm" style="font-size: 11px;" onclick="showGroupDetails({{ $group->id }})">
+                <button class="btn btn-outline btn-sm" style="font-size: 11px;" onclick="event.stopPropagation(); showGroupDetails({{ $group->id }})">
                     <i class="uil uil-eye me-1"></i> Details
                 </button>
-                <a href="{{ route('messages') }}?type=group&id={{ $group->id }}" class="btn btn-primary btn-sm" style="font-size: 11px;">
+                <a href="{{ route('messages') }}?type=group&id={{ $group->id }}" class="btn btn-primary btn-sm" style="font-size: 11px;" onclick="event.stopPropagation()">
                     <i class="uil uil-comments me-1"></i> Chat
                 </a>
             </div>
@@ -139,7 +139,7 @@
 
                         <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--border);">
                             <button class="btn btn-outline" onclick="closeModal('modal-group-details')">Close</button>
-                            <a href="/messages?type=group&id=${group.id}" class="btn btn-primary">
+                            <a href="{{ route('messages') }}?type=group&id=${group.id}" class="btn btn-primary">
                                 <i class="uil uil-comments me-2"></i> Open Group Chat
                             </a>
                         </div>

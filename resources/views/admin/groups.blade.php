@@ -139,193 +139,306 @@
     </div>
 </div>
 
+<!-- ═══════════════ GROUP PREVIEW MODAL ═══════════════ -->
+<div class="modal-overlay" id="modal-group-preview">
+    <div class="modal" style="max-width: 550px;">
+        <div class="modal-header">
+            <span class="modal-title" id="preview-group-name">Group Details</span>
+            <span class="modal-close" onclick="closeModal('modal-group-preview')"><i class="uil uil-multiply"></i></span>
+        </div>
+        <div id="group-preview-content" style="padding: 20px;">
+            <div style="display: flex; justify-content: center; padding: 40px;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
 <script>
-const groupSearch = document.getElementById('group-search');
-const tableBody = document.getElementById('groups-table-body');
-const paginationLinks = document.getElementById('pagination-links');
+(function() {
+    let groupSearch, tableBody, paginationLinks, searchTimeout;
 
-let searchTimeout;
+    document.addEventListener('DOMContentLoaded', function() {
+        groupSearch = document.getElementById('group-search');
+        tableBody = document.getElementById('groups-table-body');
+        paginationLinks = document.getElementById('pagination-links');
 
-function fetchGroups(page = 1) {
-    const search = groupSearch.value;
-    fetch(`/admin/groups/search?search=${search}&page=${page}`)
-        .then(response => response.json())
-        .then(data => {
-            tableBody.innerHTML = data.html;
-            paginationLinks.innerHTML = data.pagination;
-            attachPaginationListeners();
-        });
-}
-
-function attachPaginationListeners() {
-    paginationLinks.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const url = new URL(this.href);
-            const page = url.searchParams.get('page');
-            fetchGroups(page);
-        });
-    });
-}
-
-groupSearch.addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => fetchGroups(), 300);
-});
-
-function openEditGroupModal(groupId) {
-    openModal('modal-admin-group-edit');
-    fetch(`/groups/${groupId}`)
-        .then(response => response.json())
-        .then(group => {
-            document.getElementById('edit-group-id').value = group.id;
-            document.getElementById('edit-group-name').value = group.name;
-            document.getElementById('edit-group-project').value = group.project ? group.project.id : '';
-            document.getElementById('edit-group-max').value = group.max_members;
-            document.getElementById('edit-group-status').value = group.status;
-        });
-}
-
-document.getElementById('adminGroupEditForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const groupId = document.getElementById('edit-group-id').value;
-    const formData = new FormData(this);
-    
-    fetch(`/admin/groups/${groupId}/update`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            closeModal('modal-admin-group-edit');
-            fetchGroups();
+        if (groupSearch) {
+            groupSearch.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => window.fetchGroups(), 300);
+            });
         }
+        
+        attachPaginationListeners();
     });
-});
 
-function deleteGroup(groupId, groupName) {
-    if (confirm(`Are you sure you want to delete group "${groupName}"?`)) {
-        fetch(`/admin/groups/${groupId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                toast(data.message, '<i class="uil uil-check-circle"></i>');
-                fetchGroups();
-            }
+    window.fetchGroups = function(page = 1) {
+        if (!groupSearch || !tableBody || !paginationLinks) return;
+        const search = groupSearch.value;
+        fetch(`/admin/groups/search?search=${search}&page=${page}`)
+            .then(response => response.json())
+            .then(data => {
+                tableBody.innerHTML = data.html;
+                paginationLinks.innerHTML = data.pagination;
+                attachPaginationListeners();
+            })
+            .catch(err => console.error('Error fetching groups:', err));
+    };
+
+    function attachPaginationListeners() {
+        if (!paginationLinks) return;
+        paginationLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = new URL(this.href);
+                const page = url.searchParams.get('page');
+                window.fetchGroups(page);
+            });
         });
     }
-}
 
-function openMembersModal(groupId) {
-    document.getElementById('member-group-id').value = groupId;
-    openModal('modal-admin-group-members');
-    loadMembers(groupId);
-}
+    window.showGroupDetails = function(groupId) {
+        if (window.openModal) window.openModal('modal-group-preview');
+        const content = document.getElementById('group-preview-content');
+        if (content) content.innerHTML = '<div style="display: flex; justify-content: center; padding: 40px;"><div class="spinner"></div></div>';
 
-function loadMembers(groupId) {
-    const area = document.getElementById('members-list-area');
-    area.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
-    
-    fetch(`/groups/${groupId}`)
-        .then(response => response.json())
-        .then(group => {
-            if (group.members.length === 0) {
-                area.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 13px;">No members in this group.</div>';
-                return;
-            }
-            
-            let html = group.members.map(m => `
-                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-alt); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px;">
-                    <div class="sidebar-avatar" style="width: 32px; height: 32px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
-                    <div style="flex: 1;">
-                        <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">${m.role.toUpperCase()}</div>
+        fetch(`/groups/${groupId}`)
+            .then(response => response.json())
+            .then(group => {
+                const previewName = document.getElementById('preview-group-name');
+                if (previewName) previewName.innerText = group.name;
+                
+                const supervisorName = group.supervisor ? group.supervisor.name : 'Unassigned';
+                const projectTitle = group.project ? group.project.title : 'No Project Assigned';
+                
+                let membersHtml = group.members.length > 0 ? group.members.map(m => `
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 6px; border: 1px solid var(--border);">
+                        <div class="sidebar-avatar" style="width: 28px; height: 28px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${m.role.toUpperCase()}</div>
+                        </div>
                     </div>
-                    <button class="btn btn-ghost btn-sm text-danger" onclick="removeMember(${m.id}, ${groupId})"><i class="uil uil-times"></i></button>
-                </div>
-            `).join('');
-            area.innerHTML = html;
-        });
-}
+                `).join('') : '<div style="color: var(--text-muted); font-style: italic;">No members joined yet.</div>';
 
-document.getElementById('addMemberForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const groupId = document.getElementById('member-group-id').value;
-    const formData = new FormData(this);
-    
-    fetch(`/admin/groups/${groupId}/add-member`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            loadMembers(groupId);
-            fetchGroups();
-        } else {
-            toast(data.message, '<i class="uil uil-exclamation-triangle"></i>');
-        }
-    });
-});
+                if (content) {
+                    content.innerHTML = `
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Project</div>
+                            <div style="font-size: 15px; font-weight: 700; color: var(--primary);">${projectTitle}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div style="padding: 12px; background: var(--bg-alt); border-radius: 10px; border: 1px solid var(--border);">
+                                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Supervisor</div>
+                                <div style="font-size: 13px; font-weight: 600;">${supervisorName}</div>
+                            </div>
+                            <div style="padding: 12px; background: var(--bg-alt); border-radius: 10px; border: 1px solid var(--border);">
+                                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Members Capacity</div>
+                                <div style="font-size: 13px; font-weight: 600;">${group.members.length} / ${group.max_members}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">Group Members</h4>
+                            <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                                ${membersHtml}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border);">
+                            <button class="btn btn-outline" onclick="window.closeModal('modal-group-preview')">Close</button>
+                            <a href="{{ route('messages') }}?type=group&id=${group.id}" class="btn btn-primary">
+                                <i class="uil uil-comments me-2"></i> Open Group Chat
+                            </a>
+                            <button class="btn btn-primary" onclick="window.openEditGroupModal(${group.id})">Edit Group</button>
+                        </div>
+                    `;
+                }
+            });
+    };
 
-function removeMember(memberId, groupId) {
-    if (confirm('Remove this member from the group?')) {
-        fetch(`/admin/groups/members/${memberId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                toast(data.message, '<i class="uil uil-check-circle"></i>');
-                loadMembers(groupId);
-                fetchGroups();
-            }
+    window.openEditGroupModal = function(groupId) {
+        if (window.closeModal) window.closeModal('modal-group-preview');
+        if (window.openModal) window.openModal('modal-admin-group-edit');
+        fetch(`/groups/${groupId}`)
+            .then(response => response.json())
+            .then(group => {
+                const fields = {
+                    'edit-group-id': group.id,
+                    'edit-group-name': group.name,
+                    'edit-group-project': group.project ? group.project.id : '',
+                    'edit-group-max': group.max_members,
+                    'edit-group-status': group.status
+                };
+                for (let id in fields) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = fields[id];
+                }
+            });
+    };
+
+    const adminGroupEditForm = document.getElementById('adminGroupEditForm');
+    if (adminGroupEditForm) {
+        adminGroupEditForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const groupId = document.getElementById('edit-group-id').value;
+            const formData = new FormData(this);
+            
+            fetch(`/admin/groups/${groupId}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    if (window.closeModal) window.closeModal('modal-admin-group-edit');
+                    window.fetchGroups();
+                }
+            });
         });
     }
-}
 
-function openAssignSupervisorModal(groupId, currentSupId) {
-    document.getElementById('supervisor-group-id').value = groupId;
-    document.getElementById('supervisor-select-field').value = currentSupId || '';
-    openModal('modal-admin-assign-supervisor');
-}
-
-document.getElementById('assignSupervisorForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const groupId = document.getElementById('supervisor-group-id').value;
-    const formData = new FormData(this);
-    
-    fetch(`/admin/groups/${groupId}/assign-supervisor`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            closeModal('modal-admin-assign-supervisor');
-            fetchGroups();
+    window.deleteGroup = function(groupId, groupName) {
+        if (confirm(`Are you sure you want to delete group "${groupName}"?`)) {
+            fetch(`/admin/groups/${groupId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    window.fetchGroups();
+                }
+            });
         }
-    });
-});
+    };
+
+    window.openMembersModal = function(groupId) {
+        const idField = document.getElementById('member-group-id');
+        if (idField) idField.value = groupId;
+        if (window.openModal) window.openModal('modal-admin-group-members');
+        window.loadMembers(groupId);
+    };
+
+    window.loadMembers = function(groupId) {
+        const area = document.getElementById('members-list-area');
+        if (area) area.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
+        
+        fetch(`/groups/${groupId}`)
+            .then(response => response.json())
+            .then(group => {
+                if (!area) return;
+                if (group.members.length === 0) {
+                    area.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 13px;">No members in this group.</div>';
+                    return;
+                }
+                
+                let html = group.members.map(m => `
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-alt); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px;">
+                        <div class="sidebar-avatar" style="width: 32px; height: 32px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${m.role.toUpperCase()}</div>
+                        </div>
+                        <button class="btn btn-ghost btn-sm text-danger" onclick="window.removeMember(${m.id}, ${groupId})"><i class="uil uil-times"></i></button>
+                    </div>
+                `).join('');
+                area.innerHTML = html;
+            });
+    };
+
+    const addMemberForm = document.getElementById('addMemberForm');
+    if (addMemberForm) {
+        addMemberForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const groupId = document.getElementById('member-group-id').value;
+            const formData = new FormData(this);
+            
+            fetch(`/admin/groups/${groupId}/add-member`, {
+                method: 'POST',
+                body: formData,
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    window.loadMembers(groupId);
+                    window.fetchGroups();
+                } else {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-exclamation-triangle"></i>');
+                }
+            });
+        });
+    }
+
+    window.removeMember = function(memberId, groupId) {
+        if (confirm('Remove this member from the group?')) {
+            fetch(`/admin/groups/members/${memberId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    window.loadMembers(groupId);
+                    window.fetchGroups();
+                }
+            });
+        }
+    };
+
+    window.openAssignSupervisorModal = function(groupId, currentSupId) {
+        const idField = document.getElementById('supervisor-group-id');
+        const selectField = document.getElementById('supervisor-select-field');
+        if (idField) idField.value = groupId;
+        if (selectField) selectField.value = currentSupId || '';
+        if (window.openModal) window.openModal('modal-admin-assign-supervisor');
+    };
+
+    const assignSupervisorForm = document.getElementById('assignSupervisorForm');
+    if (assignSupervisorForm) {
+        assignSupervisorForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const groupId = document.getElementById('supervisor-group-id').value;
+            const formData = new FormData(this);
+            
+            fetch(`/admin/groups/${groupId}/assign-supervisor`, {
+                method: 'POST',
+                body: formData,
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    if (window.closeModal) window.closeModal('modal-admin-assign-supervisor');
+                    window.fetchGroups();
+                }
+            });
+        });
+    }
+})();
 </script>
 @endpush

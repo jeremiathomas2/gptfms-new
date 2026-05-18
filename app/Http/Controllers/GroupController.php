@@ -83,6 +83,16 @@ class GroupController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $user = Auth::user();
+
+        // Check if user is already in a group
+        if (GroupMember::where('user_id', $user->id)->where('status', 'joined')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already a member of a group.'
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 

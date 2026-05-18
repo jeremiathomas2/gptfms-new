@@ -28,6 +28,17 @@ class Message extends Model
         'read_at' => 'datetime',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($message) {
+            if (empty($message->message_id)) {
+                $message->message_id = 'MSG-' . strtoupper(\Illuminate\Support\Str::random(12));
+            }
+        });
+    }
+
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');

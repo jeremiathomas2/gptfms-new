@@ -91,7 +91,8 @@
                 // Add Private Chats
                 data.users.forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('private', user.id, user.name, 'Private Message', initials);
+                    const groupBadge = user.group_name ? `<span class="badge badge-blue" style="font-size: 9px; margin-left: 5px; padding: 2px 5px;">${user.group_name}</span>` : '';
+                    const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge);
                     chatList.appendChild(item);
 
                     if (autoType === 'private' && autoId == user.id) {
@@ -106,7 +107,7 @@
             });
     }
 
-    function createChatItem(type, id, name, preview, initials) {
+    function createChatItem(type, id, name, preview, initials, badge = '') {
         const div = document.createElement('div');
         div.className = 'chat-item';
         if (activeChat && activeChat.type === type && activeChat.id === id) {
@@ -118,7 +119,7 @@
         div.innerHTML = `
             <div class="chat-av" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">${initials}</div>
             <div>
-                <div class="chat-name">${name}</div>
+                <div class="chat-name">${name}${badge}</div>
                 <div class="chat-preview">${preview}</div>
             </div>
         `;
@@ -136,8 +137,7 @@
             // Find element if not provided (e.g. from auto-select)
             const items = document.querySelectorAll('.chat-item');
             items.forEach(item => {
-                // This is a bit brittle but works for now as we don't have many chats
-                if (item.querySelector('.chat-name').innerText === name) {
+                if (item.querySelector('.chat-name').innerText.includes(name)) {
                     item.classList.add('active');
                 }
             });
@@ -148,13 +148,24 @@
         
         document.getElementById('active-chat-name').innerText = name;
         document.getElementById('active-chat-av').innerText = initials;
-        document.getElementById('active-chat-status').innerHTML = type === 'group' ? '<i class="uil uil-users-alt me-1"></i> Group Chat' : '<i class="uil uil-circle me-1" style="font-size:8px; color: #10B981"></i> Online';
+        
+        let statusHtml = type === 'group' ? '<i class="uil uil-users-alt me-1"></i> Group Chat' : '<i class="uil uil-circle me-1" style="font-size:8px; color: #10B981"></i> Online';
+        
+        // Add group info to status if available (for supervisors)
+        if (type === 'private' && element) {
+            const badge = element.querySelector('.badge');
+            if (badge) {
+                statusHtml += ` <span class="badge badge-blue" style="font-size: 10px; padding: 2px 6px;">${badge.innerText}</span>`;
+            }
+        }
+        
+        document.getElementById('active-chat-status').innerHTML = statusHtml;
         
         loadMessages();
         
         // Setup refresh interval
         if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(loadMessages, 5000); // Refresh every 5 seconds
+        refreshInterval = setInterval(loadMessages, 3000); // Refresh every 3 seconds
     }
 
     function loadMessages() {
@@ -212,13 +223,19 @@
                 target_id: activeChat.id
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
         .then(message => {
             loadMessages(); // Reload messages to show the new one
         })
         .catch(error => {
             console.error('Error sending message:', error);
-            toast('Failed to send message', '<i class="uil uil-exclamation-circle"></i>');
+            const msg = error.error || error.message || 'Failed to send message';
+            toast(msg, '<i class="uil uil-exclamation-circle"></i>');
         });
     }
 </script>

@@ -253,294 +253,330 @@
     </div>
 </div>
 
+@push('scripts')
 <script>
-// Real-time Search and Filters
-const userSearch = document.getElementById('user-search');
-const filterRole = document.getElementById('filter-role');
-const filterStatus = document.getElementById('filter-status');
-const tableBody = document.getElementById('users-table-body');
-const paginationLinks = document.getElementById('pagination-links');
+(function() {
+    // State variables
+    let userSearch, filterRole, filterStatus, tableBody, paginationLinks, searchTimeout;
 
-let searchTimeout;
+    // Initialize elements and listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        userSearch = document.getElementById('user-search');
+        filterRole = document.getElementById('filter-role');
+        filterStatus = document.getElementById('filter-status');
+        tableBody = document.getElementById('users-table-body');
+        paginationLinks = document.getElementById('pagination-links');
 
-function fetchUsers(page = 1) {
-    const search = userSearch.value;
-    const role = filterRole.value;
-    const status = filterStatus.value;
+        if (userSearch) {
+            userSearch.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => window.fetchUsers(), 300);
+            });
+        }
 
-    fetch(`/users/search?search=${search}&role=${role}&status=${status}&page=${page}`)
+        if (filterRole) filterRole.addEventListener('change', () => window.fetchUsers());
+        if (filterStatus) filterStatus.addEventListener('change', () => window.fetchUsers());
+        
+        attachPaginationListeners();
+
+        // Forms
+        const userAddForm = document.getElementById('userAddForm');
+        if (userAddForm) {
+            userAddForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const submitBtn = this.querySelector('button[type="submit"]');
+                
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="uil uil-spinner-alt uil-spin"></i> Creating...';
+                }
+
+                fetch("{{ route('users.store') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Create User';
+                    }
+                    
+                    if (data.success) {
+                        if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                        if (window.closeModal) window.closeModal('modal-user-add');
+                        this.reset();
+                        window.fetchUsers();
+                    } else {
+                        if (window.toast) window.toast(data.message || 'Failed to create user', '<i class="uil uil-exclamation-triangle"></i>');
+                    }
+                })
+                .catch(error => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Create User';
+                    }
+                    console.error('Error:', error);
+                    if (window.toast) window.toast('An error occurred while creating user.', '<i class="uil uil-exclamation-triangle"></i>');
+                });
+            });
+        }
+
+        const csvImportForm = document.getElementById('csvImportForm');
+        if (csvImportForm) {
+            csvImportForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const submitBtn = this.querySelector('button[type="submit"]');
+                
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="uil uil-spinner-alt uil-spin"></i> Importing...';
+                }
+
+                fetch("{{ route('users.import') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Start Import';
+                    }
+                    
+                    if (data.success) {
+                        if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                        if (window.closeModal) window.closeModal('modal-csv-import');
+                        this.reset();
+                        document.getElementById('file-name-display').style.display = 'none';
+                        window.fetchUsers();
+                    } else {
+                        if (window.toast) window.toast(data.message || 'Import failed', '<i class="uil uil-exclamation-triangle"></i>');
+                    }
+                })
+                .catch(error => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Start Import';
+                    }
+                    console.error('Error:', error);
+                    if (window.toast) window.toast('An error occurred during import.', '<i class="uil uil-exclamation-triangle"></i>');
+                });
+            });
+        }
+
+        const userEditForm = document.getElementById('userEditForm');
+        if (userEditForm) {
+            userEditForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const userIdField = document.getElementById('edit-user-id');
+                if (!userIdField) return;
+                const userId = userIdField.value;
+                const formData = new FormData(this);
+                
+                fetch(`/admin/users/${userId}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                        if (window.closeModal) window.closeModal('modal-user-edit');
+                        window.fetchUsers();
+                    } else {
+                        if (window.toast) window.toast(data.message || 'Failed to update user', '<i class="uil uil-exclamation-triangle"></i>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (window.toast) window.toast('An error occurred while updating user.', '<i class="uil uil-exclamation-triangle"></i>');
+                });
+            });
+        }
+
+        // CSV Dropzone
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('csv-file-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--primary)';
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = 'var(--border)';
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--border)';
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    updateFileName(fileInput, fileNameDisplay);
+                }
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', () => updateFileName(fileInput, fileNameDisplay));
+        }
+    });
+
+    function updateFileName(input, display) {
+        if (input && input.files.length && display) {
+            display.innerText = `Selected: ${input.files[0].name}`;
+            display.style.display = 'block';
+        }
+    }
+
+    // Exported functions
+    window.fetchUsers = function(page = 1) {
+        const search = userSearch.value;
+        const role = filterRole.value;
+        const status = filterStatus.value;
+        
+        tableBody.style.opacity = '0.5';
+        
+        fetch(`{{ route('users.search') }}?search=${encodeURIComponent(search)}&role=${role}&status=${status}&page=${page}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
         .then(response => response.json())
         .then(data => {
             tableBody.innerHTML = data.html;
             paginationLinks.innerHTML = data.pagination;
-            
-            // Re-attach pagination link listeners
+            tableBody.style.opacity = '1';
             attachPaginationListeners();
+        })
+        .catch(error => {
+            console.error('Error fetching users:', error);
+            tableBody.style.opacity = '1';
         });
-}
+    };
 
-function attachPaginationListeners() {
-    paginationLinks.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const url = new URL(this.href);
-            const page = url.searchParams.get('page');
-            fetchUsers(page);
+    function attachPaginationListeners() {
+        if (!paginationLinks) return;
+        const links = paginationLinks.querySelectorAll('a');
+        links.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = new URL(this.href);
+                const page = url.searchParams.get('page');
+                window.fetchUsers(page);
+            });
         });
-    });
-}
-
-userSearch.addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => fetchUsers(), 300);
-});
-
-filterRole.addEventListener('change', () => fetchUsers());
-filterStatus.addEventListener('change', () => fetchUsers());
-
-// Add User
-function openAddUserModal() {
-    document.getElementById('userAddForm').reset();
-    openModal('modal-user-add');
-}
-
-function toggleRegNumber(select) {
-    const regGroup = document.getElementById('add-reg-number-group');
-    if (select.value === 'student') {
-        regGroup.style.display = 'block';
-    } else {
-        regGroup.style.display = 'none';
     }
-}
 
-document.getElementById('userAddForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const submitBtn = this.querySelector('button[type="submit"]');
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="uil uil-spinner-alt uil-spin"></i> Creating...';
+    window.openAddUserModal = function() {
+        if (window.openModal) window.openModal('modal-user-add');
+    };
 
-    fetch("{{ route('users.store') }}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    window.openImportModal = function(type) {
+        const typeInput = document.getElementById('import-type');
+        const titleEl = document.getElementById('csv-import-title');
+        if (typeInput) typeInput.value = type;
+        if (titleEl) titleEl.innerText = `Import ${type.charAt(0).toUpperCase() + type.slice(1)}s`;
+        if (window.openModal) window.openModal('modal-csv-import');
+    };
+
+    window.toggleRegNumber = function(select) {
+        const regGroup = document.getElementById('add-reg-number-group');
+        if (regGroup) {
+            regGroup.style.display = select.value === 'student' ? 'block' : 'none';
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Create User';
+    };
+
+    window.showUserPreview = function(userId) {
+        if (window.openModal) window.openModal('modal-user-preview');
+        const content = document.getElementById('user-preview-content');
+        content.innerHTML = '<div style="display: flex; justify-content: center; padding: 40px;"><div class="spinner"></div></div>';
         
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            closeModal('modal-user-add');
-            fetchUsers();
-        } else {
-            toast(data.message || 'Failed to create user', '<i class="uil uil-exclamation-triangle"></i>');
-        }
-    })
-    .catch(error => {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Create User';
-        console.error('Error:', error);
-        toast('An error occurred while creating user.', '<i class="uil uil-exclamation-triangle"></i>');
-    });
-});
-
-// CSV Import
-function openImportModal(type) {
-    document.getElementById('import-type').value = type;
-    document.getElementById('csv-import-title').innerText = `Import ${type.charAt(0).toUpperCase() + type.slice(1)}s`;
-    openModal('modal-csv-import');
-}
-
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('csv-file-input');
-const fileNameDisplay = document.getElementById('file-name-display');
-
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = 'var(--primary)';
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.style.borderColor = 'var(--border)';
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = 'var(--border)';
-    if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        updateFileName();
-    }
-});
-
-fileInput.addEventListener('change', updateFileName);
-
-function updateFileName() {
-    if (fileInput.files.length) {
-        fileNameDisplay.innerText = `Selected: ${fileInput.files[0].name}`;
-        fileNameDisplay.style.display = 'block';
-    }
-}
-
-document.getElementById('csvImportForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="uil uil-spinner-alt uil-spin"></i> Importing...';
-
-    fetch("{{ route('users.import') }}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Start Import';
-        
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            closeModal('modal-csv-import');
-            fetchUsers();
-            if (data.errors && data.errors.length > 0) {
-                console.warn('Import warnings:', data.errors);
-                toast(`Completed with ${data.errors.length} warnings.`, '<i class="uil uil-exclamation-circle"></i>');
-            }
-        } else {
-            toast(data.message || 'Import failed', '<i class="uil uil-exclamation-triangle"></i>');
-        }
-    })
-    .catch(error => {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Start Import';
-        console.error('Error:', error);
-        toast('An error occurred during import.', '<i class="uil uil-exclamation-triangle"></i>');
-    });
-});
-
-function deleteUser(userId, userName) {
-    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
         fetch(`/admin/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                toast(data.message, '<i class="uil uil-check-circle"></i>');
-                fetchUsers(); // Refresh the table
-            } else {
-                toast(data.message || 'Failed to delete user', '<i class="uil uil-exclamation-triangle"></i>');
+        .then(user => {
+            const roleName = user.roles[0]?.name || 'User';
+            const badgeClass = roleName === 'admin' ? 'badge-red' : (roleName === 'supervisor' ? 'badge-amber' : 'badge-blue');
+            
+            let skillsHtml = '';
+            if (user.surveyed_skills && user.surveyed_skills.length > 0) {
+                skillsHtml = `
+                    <div style="margin-top: 20px;">
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Technical Skills</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            ${user.surveyed_skills.map(s => `<span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary); border: 1px solid rgba(37,99,235,0.2)">${s.name} (${s.level})</span>`).join('')}
+                        </div>
+                    </div>
+                `;
             }
+
+            content.innerHTML = `
+                <div style="padding: 25px;">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px;">
+                        <div class="sidebar-avatar" style="width: 80px; height: 80px; font-size: 28px; border-radius: 20px; background: ${user.avatar ? 'url(/'+user.avatar+') center/cover' : 'var(--primary)'}; display: flex; align-items: center; justify-content: center; color: #fff;">
+                            ${user.avatar ? '' : (user.first_name[0] + user.last_name[0])}
+                        </div>
+                        <div>
+                            <h2 style="margin: 0 0 5px 0; font-size: 20px;">${user.name}</h2>
+                            <span class="badge ${badgeClass}">${roleName.charAt(0).toUpperCase() + roleName.slice(1)}</span>
+                            <span class="badge badge-green" style="margin-left: 5px;">${user.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-2" style="gap: 20px;">
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Email Address</div>
+                            <div style="font-weight: 600;">${user.email}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Phone Number</div>
+                            <div style="font-weight: 600;">${user.phone || 'Not provided'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Registration Number</div>
+                            <div style="font-weight: 600;">${user.registration_number || '—'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Gender</div>
+                            <div style="font-weight: 600; text-transform: capitalize;">${user.gender || '—'}</div>
+                        </div>
+                    </div>
+
+                    ${skillsHtml}
+
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+                        <button class="btn btn-outline btn-sm" onclick="closeModal('modal-user-preview')">Close</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('preview-user-name').innerText = user.name + "'s Profile";
         })
         .catch(error => {
             console.error('Error:', error);
-            toast('An error occurred while deleting the user.', '<i class="uil uil-exclamation-triangle"></i>');
+            content.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--danger);">Failed to load user details.</div>';
         });
-    }
-}
+    };
 
-function showUserPreview(userId) {
-    openModal('modal-user-preview');
-    const content = document.getElementById('user-preview-content');
-    content.innerHTML = '<div style="display: flex; justify-content: center; padding: 40px;"><div class="spinner"></div></div>';
-    
-    fetch(`/admin/users/${userId}`)
-        .then(response => response.json())
-        .then(user => {
-            document.getElementById('preview-user-name').innerText = user.name;
-            
-            const role = user.roles[0]?.name || 'User';
-            const groupName = user.members[0]?.group?.name || 'No Group';
-            const skills = user.surveyed_skills || [];
-            
-            let skillsHtml = '<div style="color: var(--text-muted); font-style: italic;">No surveyed skills found.</div>';
-            if (skills.length > 0) {
-                skillsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    ${skills.map(s => `<span class="badge badge-blue" style="font-size: 11px;">${s.name} (${s.level})</span>`).join('')}
-                </div>`;
-            }
-            
-            content.innerHTML = `
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <div class="sidebar-avatar" style="width: 80px; height: 80px; font-size: 32px; margin: 0 auto 15px; border-radius: 20px; background: ${user.avatar ? `url(/${user.avatar}) center/cover` : 'linear-gradient(135deg,var(--primary),var(--secondary))'}">${user.avatar ? '' : user.initials}</div>
-                    <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 5px;">${user.name}</h3>
-                    <span class="badge ${role === 'admin' ? 'badge-red' : (role === 'supervisor' ? 'badge-amber' : 'badge-blue')}">${role.toUpperCase()}</span>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                    <div style="padding: 12px; background: var(--bg-alt); border-radius: 10px; border: 1px solid var(--border);">
-                        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Email</div>
-                        <div style="font-size: 13px; font-weight: 600; word-break: break-all;">${user.email}</div>
-                    </div>
-                    <div style="padding: 12px; background: var(--bg-alt); border-radius: 10px; border: 1px solid var(--border);">
-                        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Group</div>
-                        <div style="font-size: 13px; font-weight: 600;">${groupName}</div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">Profile Details</h4>
-                    <div style="display: grid; gap: 8px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                            <span style="color: var(--text-muted);">Registration Number:</span>
-                            <span style="font-weight: 600;">${user.registration_number || 'N/A'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                            <span style="color: var(--text-muted);">Phone:</span>
-                            <span style="font-weight: 600;">${user.phone || 'N/A'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                            <span style="color: var(--text-muted);">Gender:</span>
-                            <span style="font-weight: 600; text-transform: capitalize;">${user.gender || 'N/A'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                            <span style="color: var(--text-muted);">Status:</span>
-                            <span class="badge badge-green">${user.status || 'active'}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">Surveyed Skills</h4>
-                    ${skillsHtml}
-                </div>
-
-                <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--border);">
-                    <button class="btn btn-outline" onclick="closeModal('modal-user-preview')">Close</button>
-                    <button class="btn btn-primary" onclick="openEditModal(${user.id})">Edit User</button>
-                </div>
-            `;
+    window.openEditModal = function(userId) {
+        fetch(`/admin/users/${userId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .catch(error => {
-            content.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--danger);">Failed to load user profile.</div>';
-        });
-}
-
-function openEditModal(userId) {
-    closeModal('modal-user-preview');
-    openModal('modal-user-edit');
-    
-    // Hide password reset area when opening modal
-    document.getElementById('password-reset-area').style.display = 'none';
-    document.getElementById('new-password-display').innerText = '';
-
-    fetch(`/admin/users/${userId}`)
         .then(response => response.json())
         .then(user => {
             document.getElementById('edit-user-id').value = user.id;
@@ -551,69 +587,83 @@ function openEditModal(userId) {
             document.getElementById('edit-phone').value = user.phone || '';
             document.getElementById('edit-gender').value = user.gender || 'male';
             document.getElementById('edit-reg-number').value = user.registration_number || '';
-            document.getElementById('edit-status').value = user.status || 'active';
-        });
-}
-
-document.getElementById('userEditForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const userId = document.getElementById('edit-user-id').value;
-    const formData = new FormData(this);
-    
-    fetch(`/admin/users/${userId}`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check-circle"></i>');
-            closeModal('modal-user-edit');
-            fetchUsers(); // Refresh the table
-        } else {
-            toast('Failed to update user', '<i class="uil uil-exclamation-triangle"></i>');
-        }
-    });
-});
-
-function resetUserPassword() {
-    const userId = document.getElementById('edit-user-id').value;
-    if (confirm('Are you sure you want to reset this user\'s password? A new random password will be generated.')) {
-        fetch(`/admin/users/${userId}/reset-password`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                toast(data.message, '<i class="uil uil-check-circle"></i>');
-                const area = document.getElementById('password-reset-area');
-                const display = document.getElementById('new-password-display');
-                area.style.display = 'block';
-                display.innerText = data.new_password;
-            } else {
-                toast(data.message || 'Failed to reset password', '<i class="uil uil-exclamation-triangle"></i>');
-            }
+            document.getElementById('edit-status').value = user.status;
+            
+            // Hide password reset area if it was open
+            document.getElementById('password-reset-area').style.display = 'none';
+            
+            if (window.openModal) window.openModal('modal-user-edit');
         })
         .catch(error => {
             console.error('Error:', error);
-            toast('An error occurred during password reset.', '<i class="uil uil-exclamation-triangle"></i>');
+            if (window.toast) window.toast('Failed to load user data.', '<i class="uil uil-exclamation-triangle"></i>');
         });
-    }
-}
+    };
 
-function copyPassword() {
-    const password = document.getElementById('new-password-display').innerText;
-    navigator.clipboard.writeText(password).then(() => {
-        toast('Password copied to clipboard!', '<i class="uil uil-copy"></i>');
-    });
-}
+    window.deleteUser = function(userId, name) {
+        if (confirm(`Are you sure you want to delete user "${name}"? This action cannot be undone.`)) {
+            fetch(`/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    window.fetchUsers();
+                } else {
+                    if (window.toast) window.toast(data.message || 'Failed to delete user', '<i class="uil uil-exclamation-triangle"></i>');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.toast) window.toast('An error occurred while deleting user.', '<i class="uil uil-exclamation-triangle"></i>');
+            });
+        }
+    };
+
+    window.resetUserPassword = function() {
+        const userId = document.getElementById('edit-user-id').value;
+        if (confirm('Are you sure you want to reset this user\'s password? A new random password will be generated.')) {
+            fetch(`/admin/users/${userId}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                    const area = document.getElementById('password-reset-area');
+                    const display = document.getElementById('new-password-display');
+                    if (area) area.style.display = 'block';
+                    if (display) display.innerText = data.new_password;
+                } else {
+                    if (window.toast) window.toast(data.message || 'Failed to reset password', '<i class="uil uil-exclamation-triangle"></i>');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.toast) window.toast('An error occurred during password reset.', '<i class="uil uil-exclamation-triangle"></i>');
+            });
+        }
+    };
+
+    window.copyPassword = function() {
+        const display = document.getElementById('new-password-display');
+        if (display) {
+            const password = display.innerText;
+            navigator.clipboard.writeText(password).then(() => {
+                if (window.toast) window.toast('Password copied to clipboard!', '<i class="uil uil-copy"></i>');
+            });
+        }
+    };
+})();
 </script>
+@endpush
 @endsection

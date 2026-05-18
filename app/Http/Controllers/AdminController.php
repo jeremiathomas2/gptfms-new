@@ -244,9 +244,9 @@ class AdminController extends Controller
             'role' => 'required|in:leader,member',
         ]);
 
-        // Check if already in this group
-        if (GroupMember::where('group_id', $group->id)->where('user_id', $validated['user_id'])->exists()) {
-            return response()->json(['success' => false, 'message' => 'User is already a member of this group.'], 422);
+        // Check if user is already in any group
+        if (GroupMember::where('user_id', $validated['user_id'])->where('status', 'joined')->exists()) {
+            return response()->json(['success' => false, 'message' => 'User is already a member of a group.'], 422);
         }
 
         // Check if group is full

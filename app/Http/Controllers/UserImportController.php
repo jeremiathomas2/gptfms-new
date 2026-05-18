@@ -80,7 +80,7 @@ class UserImportController extends Controller
                     'email' => $email,
                     'phone' => $row['phone_number'] ?? null,
                     'gender' => strtolower($row['gender'] ?? 'other'),
-                    'registration_number' => $row['registration_number'] ?? ('REG-' . strtoupper(Str::random(8))),
+                    'registration_number' => $row['registration_number'] ?? ($type === 'student' ? ('REG-' . strtoupper(Str::random(8))) : null),
                     'password' => Hash::make('password'),
                     'status' => 'active',
                 ]);

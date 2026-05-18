@@ -33,6 +33,7 @@
       padding-top: 180px;
       margin: 0;
       box-sizing: border-box;
+      color: #f0f3ff;
     }
 
     /* ========= LIQUID BLOBS (ANIMATED BACKGROUND) ========= */
@@ -493,28 +494,6 @@
       text-align: center;
     }
 
-    h1 {
-      font-size: 2rem;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      background: linear-gradient(125deg, #ffffff, #cfdeff);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin-bottom: 0.4rem;
-      width: 100%;
-      text-align: center;
-    }
-
-    .sub {
-      font-size: 0.9rem;
-      color: rgba(220, 235, 255, 0.8);
-      font-weight: 400;
-      letter-spacing: 0.2px;
-      width: 100%;
-      text-align: center;
-    }
-
     /* form group styling */
     .input-group {
       margin-bottom: 1.5rem;
@@ -708,24 +687,27 @@
       color: white;
     }
 
-    /* signup link */
-    .signup-link {
+    /* login footer / signup link */
+    .login-footer {
       text-align: center;
       margin-top: 1.8rem;
       font-size: 0.85rem;
-      color: rgba(235, 245, 255, 0.8);
+      color: rgba(235, 245, 255, 0.85);
     }
 
-    .signup-link a {
+    .login-footer .register-link {
       color: #cae0ff;
       text-decoration: none;
       font-weight: 600;
       margin-left: 0.3rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      transition: all 0.2s;
     }
 
-    .signup-link a:hover {
+    .login-footer .register-link:hover {
       color: white;
+      border-bottom-color: white;
+      transform: scale(1.05);
     }
 
     /* extra micro-interactions + responsive */
@@ -803,9 +785,7 @@
       <!-- System Name on Left -->
       <div class="header-left">
         <div class="logo-container">
-          <div class="header-logo-icon">
-            <span class="header-logo-text">G</span>
-          </div>
+          <div class="header-logo-icon"><span class="header-logo-text">G</span></div>
           <div class="brand-info">
             <h1 class="brand-title">GPTFMS</h1>
             <p class="brand-subtitle">Group project team formation Management System</p>
@@ -815,10 +795,8 @@
 
       <!-- Register Button on Right -->
       <div class="header-right">
-        <a href="/register" class="register-btn">
-          <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-          </svg>
+        <a href="{{ route('register') }}" class="register-btn">
+          <i class="uil uil-user-plus me-2"></i>
           <span>Register</span>
         </a>
       </div>

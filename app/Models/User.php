@@ -143,6 +143,11 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
         return $this->hasMany(Project::class, 'supervisor_id');
     }
 
+    public function supervisedGroups(): HasMany
+    {
+        return $this->hasMany(Group::class, 'supervisor_id');
+    }
+
     public function assignedTasks(): HasMany
     {
         return $this->hasMany(Task::class, 'assigned_to');
