@@ -178,30 +178,23 @@ window.sendMsgBtn = function() {
 
 // ═══════════ INITIALIZATION ═══════════
 function initSettings() {
-  const theme = localStorage.getItem('gptfms-theme');
-  if (theme) setTheme(theme, true);
-
-  const sidebarBg = localStorage.getItem('gptfms-sidebar-bg');
-  const sidebarText = localStorage.getItem('gptfms-sidebar-text');
-  if (sidebarBg && sidebarText) setSidebarColor(sidebarBg, sidebarText, null, true);
-
-  const headerBg = localStorage.getItem('gptfms-header-bg');
-  const headerText = localStorage.getItem('gptfms-header-text');
-  if (headerBg && headerText) setHeaderColor(headerBg, headerText, null, true);
-
-  const accentColor = localStorage.getItem('gptfms-accent-color');
-  const accentLight = localStorage.getItem('gptfms-accent-light');
-  if (accentColor && accentLight) setAccentColor(accentColor, accentLight, null, true);
-
-  const transitionSpeed = localStorage.getItem('gptfms-transition-speed');
-  if (transitionSpeed) setTransitionSpeed(transitionSpeed, true);
-
-  const sidebarCollapsed = localStorage.getItem('gptfms-sidebar-collapsed') === 'true';
+  const sidebarCollapsed = localStorage.getItem('gptfms-sidebar-collapsed') === 'true' || window.__SIDEBAR_COLLAPSED__;
   const sidebar = document.getElementById('sidebar');
   if (sidebar && sidebarCollapsed) sidebar.classList.add('collapsed');
 
+  // Re-apply header background specifically to the navbar element if it exists
+  const headerBg = localStorage.getItem('gptfms-header-bg');
+  const navbar = document.getElementById('navbar');
+  if (navbar && headerBg) {
+    navbar.style.background = headerBg;
+  }
+
   // Highlight selected swatches in settings page if they exist
   if (window.location.pathname.includes('/settings')) {
+    const sidebarBg = localStorage.getItem('gptfms-sidebar-bg');
+    const headerBg = localStorage.getItem('gptfms-header-bg');
+    const accentColor = localStorage.getItem('gptfms-accent-color');
+
     if (sidebarBg) {
         const s = document.querySelector(`#sidebar-swatches .swatch[onclick*="'${sidebarBg}'"]`);
         if (s) s.classList.add('selected');

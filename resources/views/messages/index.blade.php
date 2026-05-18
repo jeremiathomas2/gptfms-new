@@ -10,7 +10,14 @@
     </div>
     <div class="chat-layout card" style="padding:0">
         <div class="chat-sidebar">
-            <div class="chat-search"><input class="form-control" style="font-size:12.5px;padding:8px 12px" placeholder="🔍 Search chats…"/></div>
+            @role('admin')
+            <div style="padding: 10px; border-bottom: 1px solid var(--border); display: flex; gap: 5px;">
+                <button class="btn btn-ghost btn-sm active chat-filter-btn" onclick="filterChats('groups', this)" style="flex:1; font-size: 11px;">Groups</button>
+                <button class="btn btn-ghost btn-sm chat-filter-btn" onclick="filterChats('students', this)" style="flex:1; font-size: 11px;">Students</button>
+                <button class="btn btn-ghost btn-sm chat-filter-btn" onclick="filterChats('supervisors', this)" style="flex:1; font-size: 11px;">Supervisors</button>
+            </div>
+            @endrole
+            <div class="chat-search"><input id="chat-search-input" class="form-control" style="font-size:12.5px;padding:8px 12px" placeholder="🔍 Search chats…"/></div>
             <div id="chat-list">
                 <!-- Chats will be loaded here -->
                 <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
@@ -54,6 +61,9 @@
 <script>
     let activeChat = null;
     let refreshInterval = null;
+    let allChatData = null;
+    let currentFilter = 'groups';
+    let searchTimeout = null;
 
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -61,50 +71,113 @@
         const autoId = urlParams.get('id');
         
         loadChats(autoType, autoId);
+
+        const searchInput = document.getElementById('chat-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    renderChatList();
+                }, 300);
+            });
+        }
     });
 
     function loadChats(autoType = null, autoId = null) {
         fetch('/messages/chats')
             .then(response => response.json())
             .then(data => {
-                const chatList = document.getElementById('chat-list');
-                chatList.innerHTML = '';
+                allChatData = data;
+                renderChatList(autoType, autoId);
+            });
+    }
 
-                if (data.groups.length === 0 && data.users.length === 0) {
-                    chatList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">No active chats found</div>';
-                    return;
-                }
+    function renderChatList(autoType = null, autoId = null) {
+        const chatList = document.getElementById('chat-list');
+        const searchInput = document.getElementById('chat-search-input');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        
+        chatList.innerHTML = '';
 
-                let targetItem = null;
+        if (!allChatData) return;
 
-                // Add Groups
-                data.groups.forEach(group => {
+        let targetItem = null;
+
+        // If it's admin data (has students/supervisors keys)
+        if (allChatData.students || allChatData.supervisors) {
+            if (currentFilter === 'groups') {
+                allChatData.groups.filter(g => g.name.toLowerCase().includes(searchTerm)).forEach(group => {
                     const initials = group.name.substring(0, 2).toUpperCase();
                     const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
                     chatList.appendChild(item);
-                    
                     if (autoType === 'group' && autoId == group.id) {
                         targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item };
                     }
                 });
-
-                // Add Private Chats
-                data.users.forEach(user => {
+            } else if (currentFilter === 'students') {
+                allChatData.students.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const groupBadge = user.group_name ? `<span class="badge badge-blue" style="font-size: 9px; margin-left: 5px; padding: 2px 5px;">${user.group_name}</span>` : '';
-                    const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge);
+                    const item = createChatItem('private', user.id, user.name, 'Student', initials);
                     chatList.appendChild(item);
-
                     if (autoType === 'private' && autoId == user.id) {
                         targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
                     }
                 });
+            } else if (currentFilter === 'supervisors') {
+                allChatData.supervisors.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
+                    const initials = user.initials || user.name.substring(0, 2).toUpperCase();
+                    const item = createChatItem('private', user.id, user.name, 'Supervisor', initials);
+                    chatList.appendChild(item);
+                    if (autoType === 'private' && autoId == user.id) {
+                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                    }
+                });
+            }
+        } else {
+            // Standard data for Student/Supervisor roles
+            const filteredGroups = allChatData.groups.filter(g => g.name.toLowerCase().includes(searchTerm));
+            const filteredUsers = allChatData.users.filter(u => u.name.toLowerCase().includes(searchTerm) || (u.group_name && u.group_name.toLowerCase().includes(searchTerm)));
 
-                // Auto-select if requested
-                if (targetItem) {
-                    selectChat(targetItem.type, targetItem.id, targetItem.name, targetItem.initials, targetItem.element);
+            if (filteredGroups.length === 0 && filteredUsers.length === 0) {
+                chatList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">${searchTerm ? 'No matches found' : 'No active chats found'}</div>`;
+                return;
+            }
+
+            // Add Groups
+            filteredGroups.forEach(group => {
+                const initials = group.name.substring(0, 2).toUpperCase();
+                const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
+                chatList.appendChild(item);
+                
+                if (autoType === 'group' && autoId == group.id) {
+                    targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item };
                 }
             });
+
+            // Add Private Chats
+            filteredUsers.forEach(user => {
+                const initials = user.initials || user.name.substring(0, 2).toUpperCase();
+                const groupBadge = user.group_name ? `<span class="badge badge-blue" style="font-size: 9px; margin-left: 5px; padding: 2px 5px;">${user.group_name}</span>` : '';
+                const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge);
+                chatList.appendChild(item);
+
+                if (autoType === 'private' && autoId == user.id) {
+                    targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                }
+            });
+        }
+
+        // Auto-select if requested
+        if (targetItem) {
+            selectChat(targetItem.type, targetItem.id, targetItem.name, targetItem.initials, targetItem.element);
+        }
+    }
+
+    window.filterChats = function(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.chat-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderChatList();
     }
 
     function createChatItem(type, id, name, preview, initials, badge = '') {

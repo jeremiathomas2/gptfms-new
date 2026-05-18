@@ -1,10 +1,52 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="light">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'GPTFMS') }} — Group Project Team Formation & Management</title>
+
+    <!-- Pre-render Theme Script -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('gptfms-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            const sidebarBg = localStorage.getItem('gptfms-sidebar-bg');
+            const sidebarText = localStorage.getItem('gptfms-sidebar-text');
+            if (sidebarBg && sidebarText) {
+                document.documentElement.style.setProperty('--sidebar-bg', sidebarBg);
+                document.documentElement.style.setProperty('--sidebar-text', sidebarText);
+            }
+
+            const headerBg = localStorage.getItem('gptfms-header-bg');
+            const headerText = localStorage.getItem('gptfms-header-text');
+            if (headerBg && headerText) {
+                document.documentElement.style.setProperty('--header-bg', headerBg);
+                document.documentElement.style.setProperty('--header-text', headerText);
+            }
+
+            const accentColor = localStorage.getItem('gptfms-accent-color');
+            const accentLight = localStorage.getItem('gptfms-accent-light');
+            if (accentColor && accentLight) {
+                document.documentElement.style.setProperty('--primary', accentColor);
+                document.documentElement.style.setProperty('--primary-light', accentLight);
+                document.documentElement.style.setProperty('--sidebar-active', accentColor);
+            }
+
+            const transitionSpeed = localStorage.getItem('gptfms-transition-speed');
+            if (transitionSpeed) {
+                document.documentElement.style.setProperty('--transition', `${transitionSpeed}ms cubic-bezier(.4,0,.2,1)`);
+            }
+
+            const sidebarCollapsed = localStorage.getItem('gptfms-sidebar-collapsed') === 'true';
+            if (sidebarCollapsed) {
+                // We'll apply the class later since the body isn't ready yet,
+                // but we can set a data attribute or global variable.
+                window.__SIDEBAR_COLLAPSED__ = true;
+            }
+        })();
+    </script>
     <!-- Phoenix Template Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">

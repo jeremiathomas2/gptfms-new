@@ -59,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
     // Admin Group Management
     Route::get('/admin/groups', [AdminController::class, 'groups'])->name('admin.groups');
     Route::get('/admin/groups/search', [AdminController::class, 'searchGroups'])->name('admin.groups.search');
+    Route::delete('/admin/groups/delete-all', [AdminController::class, 'deleteAllGroups'])->name('admin.groups.delete_all');
     Route::post('/admin/groups/{group}/update', [AdminController::class, 'updateGroup'])->name('admin.groups.update');
     Route::delete('/admin/groups/{group}', [AdminController::class, 'deleteGroup'])->name('admin.groups.delete');
     Route::post('/admin/groups/{group}/add-member', [AdminController::class, 'addGroupMember'])->name('admin.groups.add_member');

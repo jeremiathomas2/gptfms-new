@@ -6,7 +6,10 @@
 <div class="page active" id="page-admin-groups">
     <div class="section-header">
         <div><div class="section-title">Group Management</div><div class="section-sub">Oversee all project groups, members, and supervisors</div></div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-group')"><i class="uil uil-plus me-1"></i> Create Group</button>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-outline btn-sm text-danger" onclick="deleteAllGroups()"><i class="uil uil-trash-alt me-1"></i> Delete All Groups</button>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-group')"><i class="uil uil-plus me-1"></i> Create Group</button>
+        </div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
@@ -321,6 +324,38 @@
                     window.fetchGroups();
                 }
             });
+        }
+    };
+
+    window.deleteAllGroups = function() {
+        const confirmation = confirm('Are you absolutely sure you want to delete ALL groups? This will remove all group assignments and cannot be undone.');
+        if (confirmation) {
+            const finalConfirmation = confirm('This is your final warning. Type "DELETE" in the next prompt if you are sure.');
+            if (finalConfirmation) {
+                const typeConfirm = prompt('Please type "DELETE" to confirm:');
+                if (typeConfirm === 'DELETE') {
+                    fetch('/admin/groups/delete-all', {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
+                            window.fetchGroups();
+                        } else {
+                            if (window.toast) window.toast(data.message, '<i class="uil uil-exclamation-triangle"></i>');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        if (window.toast) window.toast('An error occurred while deleting groups.', '<i class="uil uil-exclamation-triangle"></i>');
+                    });
+                }
+            }
         }
     };
 

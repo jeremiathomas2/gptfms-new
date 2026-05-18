@@ -54,8 +54,20 @@ class MessageController extends Controller
                     }
                 }
             }
+        } elseif ($user->hasRole('admin')) {
+            // Admin: Separate lists for Students, Supervisors, and Groups
+            $groups = Group::with('members.user', 'supervisor')->get();
+            
+            $students = User::role('student')->get();
+            $supervisors = User::role('supervisor')->get();
+            
+            return response()->json([
+                'groups' => $groups,
+                'students' => $students,
+                'supervisors' => $supervisors
+            ]);
         } else {
-            // Admin or others: Existing logic (all groups and existing private chats)
+            // Others: Existing logic (all groups and existing private chats)
             $memberGroups = $user->groupMemberships()->with('group')->get()->pluck('group');
             $supervisedGroups = $user->supervisedGroups()->get();
             $groups = $memberGroups->concat($supervisedGroups)->unique('id')->filter();

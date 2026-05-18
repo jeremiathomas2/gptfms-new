@@ -14,8 +14,10 @@
             <div class="section-sub">Here's what's happening with the system today.</div>
         </div>
         <div style="display:flex;gap:8px">
+            @role('admin')
             <button class="btn btn-outline btn-sm"><i class="uil uil-export me-1"></i> Export</button>
             <button class="btn btn-primary btn-sm" onclick="openModal('modal-group')"><i class="uil uil-plus me-1"></i> New Group</button>
+            @endrole
         </div>
     </div>
 

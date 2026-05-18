@@ -237,6 +237,27 @@ class AdminController extends Controller
         }
     }
 
+    public function deleteAllGroups()
+    {
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // Clear relationships first to avoid FK constraints
+            GroupMember::query()->delete();
+            \App\Models\Message::whereNotNull('group_id')->delete();
+            
+            // Now delete all groups
+            Group::query()->delete();
+
+            \Illuminate\Support\Facades\DB::commit();
+            
+            return response()->json(['success' => true, 'message' => 'All groups and their memberships have been cleared successfully.']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to delete all groups: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function addGroupMember(Request $request, Group $group)
     {
         $validated = $request->validate([
