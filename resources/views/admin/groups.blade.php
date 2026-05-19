@@ -218,15 +218,26 @@
                 const supervisorName = group.supervisor ? group.supervisor.name : 'Unassigned';
                 const projectTitle = group.project ? group.project.title : 'No Project Assigned';
                 
-                let membersHtml = group.members.length > 0 ? group.members.map(m => `
-                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 6px; border: 1px solid var(--border);">
-                        <div class="sidebar-avatar" style="width: 28px; height: 28px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${m.role.toUpperCase()}</div>
+                let membersHtml = group.members.length > 0 ? group.members.map(m => {
+                    if (!m.user) return '';
+                    
+                    const skillsBadgeHtml = m.user.skills && m.user.skills.length > 0 
+                        ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                            ${m.user.skills.map(s => `<span class="badge" style="font-size: 9px; padding: 1px 6px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.15)">${s}</span>`).join('')}
+                           </div>` 
+                        : '';
+
+                    return `
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 6px; border: 1px solid var(--border);">
+                            <div class="sidebar-avatar" style="width: 28px; height: 28px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; font-weight: 700;">${m.user.name}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${m.role.toUpperCase()}</div>
+                                ${skillsBadgeHtml}
+                            </div>
                         </div>
-                    </div>
-                `).join('') : '<div style="color: var(--text-muted); font-style: italic;">No members joined yet.</div>';
+                    `;
+                }).join('') : '<div style="color: var(--text-muted); font-style: italic;">No members joined yet.</div>';
 
                 if (content) {
                     content.innerHTML = `

@@ -4,8 +4,20 @@
 
 @push('styles')
 <style>
-    #content { overflow: hidden !important; }
-    .page { height: 100%; }
+    #content { 
+        display: flex; 
+        flex-direction: column; 
+        overflow: hidden !important; 
+        height: calc(100vh - 60px); /* Adjust for navbar height */
+    }
+    .page { 
+        display: none; 
+        flex: 1; 
+        flex-direction: column; 
+        min-height: 0; 
+        height: 100%; 
+    }
+    .page.active { display: flex; }
 </style>
 @endpush
 

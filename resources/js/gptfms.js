@@ -66,11 +66,18 @@ document.addEventListener('click', e => {
 window.toggleDropdown = function(id) {
   const dropdown = document.getElementById(id);
   if (dropdown) {
+    // Check if it's already open
+    const isOpen = dropdown.classList.contains('open');
+    
     // Close other dropdowns first
     document.querySelectorAll('.dropdown').forEach(d => {
-        if (d.id !== id) d.classList.remove('open');
+        d.classList.remove('open');
     });
-    dropdown.classList.toggle('open');
+    
+    // Toggle the target dropdown
+    if (!isOpen) {
+        dropdown.classList.add('open');
+    }
   }
 }
 window.closeAllDropdowns = function() {

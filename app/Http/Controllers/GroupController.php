@@ -36,7 +36,7 @@ class GroupController extends Controller
 
     public function show(Group $group)
     {
-        $group->load(['members.user', 'project', 'creator', 'supervisor']);
+        $group->load(['members.user.studentSkillsSurvey', 'project', 'creator', 'supervisor']);
         
         // Add more context if needed, like project description or member specific details
         return response()->json([
@@ -59,16 +59,22 @@ class GroupController extends Controller
                 'initials' => $group->supervisor->initials,
             ] : null,
             'members' => $group->members->map(function($member) {
+                $skills = [];
+                if ($member->user && $member->user->studentSkillsSurvey) {
+                    $skills = $member->user->studentSkillsSurvey->skills ?: [];
+                }
+                
                 return [
                     'role' => $member->role,
-                    'user' => [
+                    'user' => $member->user ? [
                         'name' => $member->user->name,
                         'email' => $member->user->email,
                         'phone' => $member->user->phone,
                         'avatar' => $member->user->avatar,
                         'initials' => $member->user->initials,
                         'registration_number' => $member->user->registration_number,
-                    ]
+                        'skills' => $skills,
+                    ] : null
                 ];
             }),
         ]);

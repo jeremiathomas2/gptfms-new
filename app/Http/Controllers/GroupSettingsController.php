@@ -61,23 +61,11 @@ class GroupSettingsController extends Controller
                 return response()->json(['success' => false, 'message' => 'No unassigned students found.']);
             }
 
-            // 2. Prepare data for balancing
+            // 2. Prepare groups
             $participantsPerGroup = $settings->participants_per_group ?: 5;
             $numGroups = ceil($unassignedStudents->count() / $participantsPerGroup);
             
-            // 3. Shuffle or sort for balancing
-            if ($settings->balance_by_skills) {
-                // Simplified skill sorting: count surveyed skills
-                $unassignedStudents = $unassignedStudents->sortByDesc(function($student) {
-                    if (!$student->studentSkillsSurvey) return 0;
-                    $responses = json_decode($student->studentSkillsSurvey->responses, true) ?: [];
-                    return count($responses, COUNT_RECURSIVE);
-                });
-            } else {
-                $unassignedStudents = $unassignedStudents->shuffle();
-            }
-
-            // 4. Distribute into groups
+            // Initialize balanced pools
             $groups = [];
             $lastGroupNumber = Group::where('name', 'LIKE', 'Group No %')->count();
             
@@ -94,20 +82,46 @@ class GroupSettingsController extends Controller
                     'status' => 'active',
                     'created_by' => Auth::id(),
                     'formed_at' => now(),
+                    'formation_criteria' => [
+                        'strategy' => 'balanced_auto_formation',
+                        'gender_balanced' => $settings->balance_by_gender,
+                        'skills_balanced' => $settings->balance_by_skills
+                    ]
                 ]);
                 $groups[] = $group;
             }
 
-            $groupIndex = 0;
-            foreach ($unassignedStudents as $student) {
-                GroupMember::create([
-                    'group_id' => $groups[$groupIndex % $numGroups]->id,
-                    'user_id' => $student->id,
-                    'role' => ($groupIndex < $numGroups) ? 'leader' : 'member',
-                    'status' => 'joined',
-                    'joined_at' => now(),
-                ]);
-                $groupIndex++;
+            // 3. Balancing logic
+            $studentsToAssign = $unassignedStudents;
+
+            // Strategy: Snake distribution for skills
+            if ($settings->balance_by_skills) {
+                // Score students by skills (more skills = higher score)
+                $studentsToAssign = $studentsToAssign->map(function($student) {
+                    $score = 0;
+                    if ($student->studentSkillsSurvey) {
+                        // Count skills
+                        $score += count($student->studentSkillsSurvey->skills ?: []);
+                        // Add weight for experience level
+                        $levels = ['beginner' => 1, 'intermediate' => 3, 'advanced' => 5];
+                        $score += $levels[strtolower($student->studentSkillsSurvey->experience_level)] ?? 0;
+                    }
+                    $student->temp_skill_score = $score;
+                    return $student;
+                })->sortByDesc('temp_skill_score');
+            }
+
+            // If gender balancing is enabled, we split by gender first, then distribute
+            if ($settings->balance_by_gender) {
+                $males = $studentsToAssign->where('gender', 'male')->values();
+                $females = $studentsToAssign->where('gender', 'female')->values();
+                $others = $studentsToAssign->whereNotIn('gender', ['male', 'female'])->values();
+
+                $this->distributeBalanced($males, $groups, $numGroups);
+                $this->distributeBalanced($females, $groups, $numGroups);
+                $this->distributeBalanced($others, $groups, $numGroups);
+            } else {
+                $this->distributeBalanced($studentsToAssign->values(), $groups, $numGroups);
             }
 
             // Deactivate countdown
@@ -119,12 +133,58 @@ class GroupSettingsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully formed ' . count($groups) . ' groups.',
+                'message' => 'Successfully formed ' . count($groups) . ' groups with balancing applied.',
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Helper to distribute a list of students into groups in a balanced way
+     */
+    protected function distributeBalanced($students, $groups, $numGroups)
+    {
+        // Use a persistent counter to track next available group to maintain balance across calls
+        static $currentGroupIndex = 0;
+
+        foreach ($students as $student) {
+            // Find a group that isn't full yet, starting from current index
+            $assigned = false;
+            for ($attempt = 0; $attempt < $numGroups; $attempt++) {
+                $idx = ($currentGroupIndex + $attempt) % $numGroups;
+                $targetGroup = $groups[$idx];
+                
+                if ($targetGroup->members()->count() < $targetGroup->max_members) {
+                    GroupMember::create([
+                        'group_id' => $targetGroup->id,
+                        'user_id' => $student->id,
+                        'role' => ($targetGroup->members()->count() === 0) ? 'leader' : 'member',
+                        'status' => 'joined',
+                        'joined_at' => now(),
+                    ]);
+                    
+                    // Increment starting index for next student to ensure round-robin
+                    $currentGroupIndex = ($idx + 1) % $numGroups;
+                    $assigned = true;
+                    break;
+                }
+            }
+
+            // Fallback: if all groups are technically "full" but we still have students (rounding issues)
+            if (!$assigned) {
+                $idx = $currentGroupIndex % $numGroups;
+                GroupMember::create([
+                    'group_id' => $groups[$idx]->id,
+                    'user_id' => $student->id,
+                    'role' => 'member',
+                    'status' => 'joined',
+                    'joined_at' => now(),
+                ]);
+                $currentGroupIndex++;
+            }
         }
     }
 

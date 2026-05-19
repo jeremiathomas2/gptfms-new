@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\GroupMember;
 use App\Models\Project;
 use App\Models\Task;
+use App\Notifications\UserCreatedNotification;
 
 class AdminController extends Controller
 {
@@ -61,6 +62,15 @@ class AdminController extends Controller
 
         $user->assignRole($validated['role']);
 
+        // Send notifications
+        try {
+            $notification = new UserCreatedNotification($validated['password']);
+            $user->notify($notification);
+            $notification->sendSms($user);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Manual User Creation Notification failed: " . $e->getMessage());
+        }
+
         return response()->json(['success' => true, 'message' => 'User created successfully']);
     }
 
@@ -100,18 +110,14 @@ class AdminController extends Controller
         // Add surveyed skills if they exist
         $surveyedSkills = [];
         if ($user->studentSkillsSurvey) {
-            $responses = json_decode($user->studentSkillsSurvey->responses, true) ?: [];
-            foreach ($responses as $category => $skills) {
-                if (is_array($skills)) {
-                    foreach ($skills as $skill => $level) {
-                        if ($level && $level !== 'none') {
-                            $surveyedSkills[] = [
-                                'name' => str_replace('_', ' ', $skill),
-                                'level' => $level
-                            ];
-                        }
-                    }
-                }
+            $skills = $user->studentSkillsSurvey->skills ?: [];
+            $expLevel = ucfirst($user->studentSkillsSurvey->experience_level ?: 'Not specified');
+            
+            foreach ($skills as $skill) {
+                $surveyedSkills[] = [
+                    'name' => $skill,
+                    'level' => $expLevel // Use the overall experience level
+                ];
             }
         }
         $user->surveyed_skills = $surveyedSkills;

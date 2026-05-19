@@ -8,17 +8,17 @@
         <div><div class="section-title">User Management</div><div class="section-sub">Manage users, roles, and system configuration</div></div>
         <div style="display:flex;gap:8px;align-items:center;">
             <div class="dropdown-wrap" style="position:relative;">
-                <button class="btn btn-outline btn-sm" onclick="toggleDropdown('template-dropdown')"><i class="uil uil-file-download me-1"></i> Templates</button>
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); toggleDropdown('template-dropdown')"><i class="uil uil-file-download me-1"></i> Templates</button>
                 <div id="template-dropdown" class="dropdown" style="width:200px; right:0; top:35px;">
-                    <a href="{{ route('users.template', 'student') }}" class="notif-item"><i class="uil uil-graduation-cap me-2"></i> Student Template</a>
-                    <a href="{{ route('users.template', 'supervisor') }}" class="notif-item"><i class="uil uil-briefcase-alt me-2"></i> Supervisor Template</a>
+                    <a href="{{ route('users.template', 'student') }}" class="notif-item" style="display: block;"><i class="uil uil-graduation-cap me-2"></i> Student Template</a>
+                    <a href="{{ route('users.template', 'supervisor') }}" class="notif-item" style="display: block;"><i class="uil uil-briefcase-alt me-2"></i> Supervisor Template</a>
                 </div>
             </div>
             <div class="dropdown-wrap" style="position:relative;">
-                <button class="btn btn-outline btn-sm" onclick="toggleDropdown('import-dropdown')"><i class="uil uil-file-upload me-1"></i> Import CSV</button>
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); toggleDropdown('import-dropdown')"><i class="uil uil-file-upload me-1"></i> Import CSV</button>
                 <div id="import-dropdown" class="dropdown" style="width:200px; right:0; top:35px;">
-                    <a href="#" class="notif-item" onclick="openImportModal('student')"><i class="uil uil-graduation-cap me-2"></i> Import Students</a>
-                    <a href="#" class="notif-item" onclick="openImportModal('supervisor')"><i class="uil uil-briefcase-alt me-2"></i> Import Supervisors</a>
+                    <a href="#" class="notif-item" style="display: block;" onclick="event.preventDefault(); event.stopPropagation(); openImportModal('student')"><i class="uil uil-graduation-cap me-2"></i> Import Students</a>
+                    <a href="#" class="notif-item" style="display: block;" onclick="event.preventDefault(); event.stopPropagation(); openImportModal('supervisor')"><i class="uil uil-briefcase-alt me-2"></i> Import Supervisors</a>
                 </div>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openAddUserModal()"><i class="uil uil-user-plus me-1"></i> Add User</button>
@@ -488,6 +488,7 @@
     };
 
     window.openImportModal = function(type) {
+        window.closeAllDropdowns();
         const typeInput = document.getElementById('import-type');
         const titleEl = document.getElementById('csv-import-title');
         if (typeInput) typeInput.value = type;
