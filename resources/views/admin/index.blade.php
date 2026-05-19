@@ -358,7 +358,8 @@
                         if (window.toast) window.toast(data.message, '<i class="uil uil-check-circle"></i>');
                         if (window.closeModal) window.closeModal('modal-csv-import');
                         this.reset();
-                        document.getElementById('file-name-display').style.display = 'none';
+                        const nameDisplay = document.getElementById('file-name-display');
+                        if (nameDisplay) nameDisplay.style.display = 'none';
                         window.fetchUsers();
                     } else {
                         if (window.toast) window.toast(data.message || 'Import failed', '<i class="uil uil-exclamation-triangle"></i>');
@@ -565,7 +566,8 @@
                     </div>
                 </div>
             `;
-            document.getElementById('preview-user-name').innerText = user.name + "'s Profile";
+            const nameEl = document.getElementById('preview-user-name');
+            if (nameEl) nameEl.innerText = user.name + "'s Profile";
         })
         .catch(error => {
             console.error('Error:', error);
@@ -579,18 +581,29 @@
         })
         .then(response => response.json())
         .then(user => {
-            document.getElementById('edit-user-id').value = user.id;
-            document.getElementById('edit-first-name').value = user.first_name;
-            document.getElementById('edit-middle-name').value = user.middle_name || '';
-            document.getElementById('edit-last-name').value = user.last_name;
-            document.getElementById('edit-email').value = user.email;
-            document.getElementById('edit-phone').value = user.phone || '';
-            document.getElementById('edit-gender').value = user.gender || 'male';
-            document.getElementById('edit-reg-number').value = user.registration_number || '';
-            document.getElementById('edit-status').value = user.status;
+            const editId = document.getElementById('edit-user-id');
+            const editFirst = document.getElementById('edit-first-name');
+            const editMiddle = document.getElementById('edit-middle-name');
+            const editLast = document.getElementById('edit-last-name');
+            const editEmail = document.getElementById('edit-email');
+            const editPhone = document.getElementById('edit-phone');
+            const editGender = document.getElementById('edit-gender');
+            const editReg = document.getElementById('edit-reg-number');
+            const editStatus = document.getElementById('edit-status');
+
+            if (editId) editId.value = user.id;
+            if (editFirst) editFirst.value = user.first_name;
+            if (editMiddle) editMiddle.value = user.middle_name || '';
+            if (editLast) editLast.value = user.last_name;
+            if (editEmail) editEmail.value = user.email;
+            if (editPhone) editPhone.value = user.phone || '';
+            if (editGender) editGender.value = user.gender || 'male';
+            if (editReg) editReg.value = user.registration_number || '';
+            if (editStatus) editStatus.value = user.status;
             
             // Hide password reset area if it was open
-            document.getElementById('password-reset-area').style.display = 'none';
+            const resetArea = document.getElementById('password-reset-area');
+            if (resetArea) resetArea.style.display = 'none';
             
             if (window.openModal) window.openModal('modal-user-edit');
         })
@@ -626,7 +639,9 @@
     };
 
     window.resetUserPassword = function() {
-        const userId = document.getElementById('edit-user-id').value;
+        const userIdField = document.getElementById('edit-user-id');
+        if (!userIdField) return;
+        const userId = userIdField.value;
         if (confirm('Are you sure you want to reset this user\'s password? A new random password will be generated.')) {
             fetch(`/admin/users/${userId}/reset-password`, {
                 method: 'POST',

@@ -2,6 +2,13 @@
 
 @section('breadcrumb', 'Messages')
 
+@push('styles')
+<style>
+    #content { overflow: hidden !important; }
+    .page { height: 100%; }
+</style>
+@endpush
+
 @section('content')
 <div class="page active" id="page-messages">
     <div class="section-header">
@@ -41,9 +48,58 @@
             <div class="chat-messages" id="chat-messages">
                 <!-- Messages will be loaded here -->
             </div>
-            <div class="chat-input-area">
-                <button class="btn btn-ghost" style="font-size:18px;padding:0"><i class="uil uil-smile"></i></button>
-                <input class="chat-input" placeholder="Type a message… (Press Enter to send)" id="chat-input-field" onkeydown="handleKey(event)"/>
+            
+            <!-- Attachment Preview -->
+            <div id="attachment-preview-container" style="display: none; padding: 10px 18px; background: var(--bg-soft); border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; flex-shrink: 0;"></div>
+
+            <div class="chat-input-area" style="position: relative;">
+                <div id="emoji-picker" class="card" style="display: none; position: absolute; bottom: 60px; left: 14px; width: 250px; padding: 10px; z-index: 1000; box-shadow: var(--shadow-hover);">
+                    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; font-size: 20px;">
+                        <span onclick="insertEmoji('😀')" style="cursor:pointer; text-align:center;">😀</span>
+                        <span onclick="insertEmoji('😁')" style="cursor:pointer; text-align:center;">😁</span>
+                        <span onclick="insertEmoji('😅')" style="cursor:pointer; text-align:center;">😅</span>
+                        <span onclick="insertEmoji('😂')" style="cursor:pointer; text-align:center;">😂</span>
+                        <span onclick="insertEmoji('🤣')" style="cursor:pointer; text-align:center;">🤣</span>
+                        <span onclick="insertEmoji('😊')" style="cursor:pointer; text-align:center;">😊</span>
+                        <span onclick="insertEmoji('😇')" style="cursor:pointer; text-align:center;">😇</span>
+                        <span onclick="insertEmoji('😉')" style="cursor:pointer; text-align:center;">😉</span>
+                        <span onclick="insertEmoji('😍')" style="cursor:pointer; text-align:center;">😍</span>
+                        <span onclick="insertEmoji('🥰')" style="cursor:pointer; text-align:center;">🥰</span>
+                        <span onclick="insertEmoji('😘')" style="cursor:pointer; text-align:center;">😘</span>
+                        <span onclick="insertEmoji('😋')" style="cursor:pointer; text-align:center;">😋</span>
+                        <span onclick="insertEmoji('😛')" style="cursor:pointer; text-align:center;">😛</span>
+                        <span onclick="insertEmoji('🤑')" style="cursor:pointer; text-align:center;">🤑</span>
+                        <span onclick="insertEmoji('🤔')" style="cursor:pointer; text-align:center;">🤔</span>
+                        <span onclick="insertEmoji('🤫')" style="cursor:pointer; text-align:center;">🤫</span>
+                        <span onclick="insertEmoji('🤨')" style="cursor:pointer; text-align:center;">🤨</span>
+                        <span onclick="insertEmoji('😐')" style="cursor:pointer; text-align:center;">😐</span>
+                        <span onclick="insertEmoji('🙄')" style="cursor:pointer; text-align:center;">🙄</span>
+                        <span onclick="insertEmoji('😬')" style="cursor:pointer; text-align:center;">😬</span>
+                        <span onclick="insertEmoji('😴')" style="cursor:pointer; text-align:center;">😴</span>
+                        <span onclick="insertEmoji('😷')" style="cursor:pointer; text-align:center;">😷</span>
+                        <span onclick="insertEmoji('😎')" style="cursor:pointer; text-align:center;">😎</span>
+                        <span onclick="insertEmoji('😭')" style="cursor:pointer; text-align:center;">😭</span>
+                        <span onclick="insertEmoji('😱')" style="cursor:pointer; text-align:center;">😱</span>
+                        <span onclick="insertEmoji('😡')" style="cursor:pointer; text-align:center;">😡</span>
+                        <span onclick="insertEmoji('👍')" style="cursor:pointer; text-align:center;">👍</span>
+                        <span onclick="insertEmoji('👎')" style="cursor:pointer; text-align:center;">👎</span>
+                        <span onclick="insertEmoji('👌')" style="cursor:pointer; text-align:center;">👌</span>
+                        <span onclick="insertEmoji('✌️')" style="cursor:pointer; text-align:center;">✌️</span>
+                        <span onclick="insertEmoji('🙌')" style="cursor:pointer; text-align:center;">🙌</span>
+                        <span onclick="insertEmoji('🙏')" style="cursor:pointer; text-align:center;">🙏</span>
+                        <span onclick="insertEmoji('🔥')" style="cursor:pointer; text-align:center;">🔥</span>
+                        <span onclick="insertEmoji('✨')" style="cursor:pointer; text-align:center;">✨</span>
+                        <span onclick="insertEmoji('🎉')" style="cursor:pointer; text-align:center;">🎉</span>
+                        <span onclick="insertEmoji('❤️')" style="cursor:pointer; text-align:center;">❤️</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-ghost" onclick="toggleEmojiPicker()" style="font-size:18px;padding:0"><i class="uil uil-smile"></i></button>
+                <button class="btn btn-ghost" onclick="document.getElementById('attachment-input').click()" style="font-size:18px;padding:0"><i class="uil uil-paperclip"></i></button>
+                <input type="file" id="attachment-input" style="display: none;" multiple onchange="handleAttachmentSelect(event)">
+                
+                <textarea class="chat-input" placeholder="Type a message… (Shift+Enter for new line)" id="chat-input-field" onkeydown="handleKey(event)" oninput="autoExpand(this)" rows="1" style="resize: none; max-height: 150px; overflow-y: auto; padding-top: 10px;"></textarea>
+                
                 <button class="btn btn-primary btn-sm" onclick="handleSend()"><i class="uil uil-message me-1"></i> Send</button>
             </div>
         </div>
@@ -64,6 +120,7 @@
     let allChatData = null;
     let currentFilter = 'groups';
     let searchTimeout = null;
+    let selectedFiles = [];
 
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -81,7 +138,67 @@
                 }, 300);
             });
         }
+
+        // Close emoji picker when clicking outside
+        document.addEventListener('click', function(e) {
+            const picker = document.getElementById('emoji-picker');
+            const smileBtn = document.querySelector('.uil-smile').parentElement;
+            if (picker && picker.style.display === 'block' && !picker.contains(e.target) && e.target !== smileBtn && !smileBtn.contains(e.target)) {
+                picker.style.display = 'none';
+            }
+        });
     });
+
+    function autoExpand(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    function toggleEmojiPicker() {
+        const picker = document.getElementById('emoji-picker');
+        picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function insertEmoji(emoji) {
+        const input = document.getElementById('chat-input-field');
+        input.value += emoji;
+        input.focus();
+        // Keep picker open for multiple emojis? No, usually it closes.
+        // toggleEmojiPicker(); 
+        autoExpand(input);
+    }
+
+    function handleAttachmentSelect(e) {
+        const files = Array.from(e.target.files);
+        selectedFiles = [...selectedFiles, ...files];
+        renderAttachmentPreview();
+    }
+
+    function removeAttachment(index) {
+        selectedFiles.splice(index, 1);
+        renderAttachmentPreview();
+    }
+
+    function renderAttachmentPreview() {
+        const container = document.getElementById('attachment-preview-container');
+        if (selectedFiles.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        container.innerHTML = '';
+        selectedFiles.forEach((file, index) => {
+            const div = document.createElement('div');
+            div.className = 'badge badge-gray';
+            div.style.padding = '5px 10px';
+            div.innerHTML = `
+                <i class="uil uil-file me-1"></i> ${file.name} 
+                <i class="uil uil-times ms-2" style="cursor:pointer" onclick="removeAttachment(${index})"></i>
+            `;
+            container.appendChild(div);
+        });
+    }
 
     function loadChats(autoType = null, autoId = null) {
         fetch('/messages/chats')
@@ -259,8 +376,25 @@
                     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     const senderName = isMe ? 'You' : (msg.sender ? msg.sender.name : 'Unknown');
                     
+                    let attachmentHtml = '';
+                    if (msg.attachments && msg.attachments.length > 0) {
+                        attachmentHtml = '<div class="msg-attachments" style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">';
+                        msg.attachments.forEach(att => {
+                            const fileName = att.name || att.path.split('/').pop();
+                            attachmentHtml += `
+                                <a href="/storage/${att.path}" target="_blank" class="badge badge-gray" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="uil uil-file-download-alt"></i> ${fileName}
+                                </a>
+                            `;
+                        });
+                        attachmentHtml += '</div>';
+                    }
+
                     div.innerHTML = `
-                        <div class="msg-bubble">${msg.content}</div>
+                        <div class="msg-bubble">
+                            ${msg.content}
+                            ${attachmentHtml}
+                        </div>
                         <div class="msg-time">${senderName} · ${time}</div>
                     `;
                     container.appendChild(div);
@@ -273,28 +407,40 @@
     }
 
     function handleKey(e) {
-        if (e.key === 'Enter') handleSend();
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     }
 
     function handleSend() {
         const input = document.getElementById('chat-input-field');
         const content = input.value.trim();
         
-        if (!content || !activeChat) return;
+        if (!content && selectedFiles.length === 0 || !activeChat) return;
         
+        const formData = new FormData();
+        formData.append('content', content);
+        formData.append('type', activeChat.type);
+        formData.append('target_id', activeChat.id);
+        
+        selectedFiles.forEach((file, index) => {
+            formData.append(`attachments[${index}]`, file);
+        });
+
+        // Reset input immediately for better UX
         input.value = '';
+        input.style.height = 'auto';
+        selectedFiles = [];
+        document.getElementById('attachment-input').value = '';
+        renderAttachmentPreview();
         
         fetch('/messages', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({
-                content: content,
-                type: activeChat.type,
-                target_id: activeChat.id
-            })
+            body: formData
         })
         .then(response => {
             if (!response.ok) {
@@ -303,7 +449,7 @@
             return response.json();
         })
         .then(message => {
-            loadMessages(); // Reload messages to show the new one
+            loadMessages();
         })
         .catch(error => {
             console.error('Error sending message:', error);

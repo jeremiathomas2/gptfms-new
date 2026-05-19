@@ -127,17 +127,32 @@ class MessageController extends Controller
     public function send(Request $request)
     {
         $validated = $request->validate([
-            'content' => 'required|string',
+            'content' => 'nullable|string',
             'type' => 'required|in:group,private',
             'target_id' => 'required|integer',
+            'attachments' => 'nullable|array',
         ]);
 
         $user = Auth::user();
 
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('messages/attachments', 'public');
+                $attachments[] = [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ];
+            }
+        }
+
         $messageData = [
             'sender_id' => $user->id,
-            'content' => $validated['content'],
-            'type' => 'text',
+            'content' => $validated['content'] ?? '',
+            'type' => !empty($attachments) ? 'file' : 'text',
+            'attachments' => $attachments,
         ];
 
         if ($validated['type'] === 'group') {
