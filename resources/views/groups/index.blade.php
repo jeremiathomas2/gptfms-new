@@ -86,19 +86,32 @@
             .then(group => {
                 document.getElementById('details-group-name').innerText = group.name;
                 
-                let membersHtml = group.members.map(m => `
-                    <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--border);">
-                        <div class="sidebar-avatar" style="width: 32px; height: 32px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 13px; font-weight: 700;">${m.user.name} ${m.user_id == {{ auth()->id() }} ? '<span style="color: var(--primary); font-size: 10px;">(You)</span>' : ''}</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${m.user.registration_number || 'N/A'} · ${m.role.toUpperCase()}</div>
+                let membersHtml = group.members.map(m => {
+                    const userSkills = m.user.skills || [];
+                    const surveyedSkills = m.user.surveyed_skills || [];
+                    const allSkills = [...new Set([...userSkills, ...surveyedSkills.map(s => s.name)])];
+                    
+                    const skillsBadgeHtml = allSkills.length > 0 
+                        ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                            ${allSkills.map(s => `<span class="badge" style="font-size: 9px; padding: 1px 6px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.15)">${s}</span>`).join('')}
+                           </div>` 
+                        : '';
+
+                    return `
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-alt); border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--border);">
+                            <div class="sidebar-avatar" style="width: 32px; height: 32px; background: ${m.user.avatar ? `url(/${m.user.avatar}) center/cover` : 'var(--primary)'}">${m.user.avatar ? '' : m.user.initials}</div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; font-weight: 700;">${m.user.name} ${m.user_id == {{ auth()->id() }} ? '<span style="color: var(--primary); font-size: 10px;">(You)</span>' : ''}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${m.user.registration_number || 'N/A'} · ${m.role.toUpperCase()}</div>
+                                ${skillsBadgeHtml}
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 11px; font-weight: 600;">${m.user.email}</div>
+                                <div style="font-size: 10px; color: var(--text-muted);">${m.user.phone || ''}</div>
+                            </div>
                         </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 11px; font-weight: 600;">${m.user.email}</div>
-                            <div style="font-size: 10px; color: var(--text-muted);">${m.user.phone || ''}</div>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
 
                 content.innerHTML = `
                     <div style="padding: 20px;">

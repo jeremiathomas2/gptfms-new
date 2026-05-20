@@ -21,7 +21,7 @@ class GroupController extends Controller
         $user = Auth::user();
         
         if ($user->hasRole('supervisor')) {
-            $groups = Group::where('supervisor_id', $user->id)->with(['members.user', 'project'])->paginate(9);
+            $groups = Group::where('supervisor_id', $user->id)->with(['members.user.studentSkillsSurvey', 'project'])->paginate(9);
             return view('supervisor.groups', compact('groups'));
         }
 
@@ -29,7 +29,7 @@ class GroupController extends Controller
             ->where('status', 'joined')
             ->first();
 
-        $group = $member ? Group::with(['members.user', 'project', 'supervisor'])->find($member->group_id) : null;
+        $group = $member ? Group::with(['members.user.studentSkillsSurvey', 'project', 'supervisor'])->find($member->group_id) : null;
         
         return view('student.my_group', compact('group'));
     }
@@ -60,8 +60,21 @@ class GroupController extends Controller
             ] : null,
             'members' => $group->members->map(function($member) {
                 $skills = [];
-                if ($member->user && $member->user->studentSkillsSurvey) {
-                    $skills = $member->user->studentSkillsSurvey->skills ?: [];
+                $surveyed_skills = [];
+                if ($member->user) {
+                    $skills = $member->user->skills ?: [];
+                    
+                    if ($member->user->studentSkillsSurvey) {
+                        $surveySkills = $member->user->studentSkillsSurvey->skills;
+                        if (is_array($surveySkills)) {
+                            foreach ($surveySkills as $skill) {
+                                $surveyed_skills[] = [
+                                    'name' => $skill,
+                                    'level' => ucfirst($member->user->studentSkillsSurvey->experience_level ?: 'Not specified')
+                                ];
+                            }
+                        }
+                    }
                 }
                 
                 return [
@@ -74,6 +87,7 @@ class GroupController extends Controller
                         'initials' => $member->user->initials,
                         'registration_number' => $member->user->registration_number,
                         'skills' => $skills,
+                        'surveyed_skills' => $surveyed_skills,
                     ] : null
                 ];
             }),

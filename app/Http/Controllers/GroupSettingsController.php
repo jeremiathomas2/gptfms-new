@@ -100,8 +100,9 @@ class GroupSettingsController extends Controller
                 $studentsToAssign = $studentsToAssign->map(function($student) {
                     $score = 0;
                     if ($student->studentSkillsSurvey) {
-                        // Count skills
-                        $score += count($student->studentSkillsSurvey->skills ?: []);
+                        // Count skills - ensure it's an array
+                        $skills = $student->studentSkillsSurvey->skills;
+                        $score += is_array($skills) ? count($skills) : 0;
                         // Add weight for experience level
                         $levels = ['beginner' => 1, 'intermediate' => 3, 'advanced' => 5];
                         $score += $levels[strtolower($student->studentSkillsSurvey->experience_level)] ?? 0;

@@ -68,6 +68,10 @@ class Task extends Model
         }
 
         $dependencyIds = $this->dependencies;
+        if (!is_array($dependencyIds)) {
+            return true;
+        }
+
         $completedDependencies = Task::whereIn('id', $dependencyIds)
             ->where('status', 'completed')
             ->count();

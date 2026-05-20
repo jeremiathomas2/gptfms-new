@@ -110,14 +110,16 @@ class AdminController extends Controller
         // Add surveyed skills if they exist
         $surveyedSkills = [];
         if ($user->studentSkillsSurvey) {
-            $skills = $user->studentSkillsSurvey->skills ?: [];
+            $skills = $user->studentSkillsSurvey->skills;
             $expLevel = ucfirst($user->studentSkillsSurvey->experience_level ?: 'Not specified');
             
-            foreach ($skills as $skill) {
-                $surveyedSkills[] = [
-                    'name' => $skill,
-                    'level' => $expLevel // Use the overall experience level
-                ];
+            if (is_array($skills)) {
+                foreach ($skills as $skill) {
+                    $surveyedSkills[] = [
+                        'name' => $skill,
+                        'level' => $expLevel // Use the overall experience level
+                    ];
+                }
             }
         }
         $user->surveyed_skills = $surveyedSkills;

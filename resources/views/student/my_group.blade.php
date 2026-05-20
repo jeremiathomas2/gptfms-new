@@ -50,6 +50,25 @@
                                 <div style="flex: 1;">
                                     <div style="font-size: 14px; font-weight: 700;">{{ $member->user->name }} @if($member->user_id == auth()->id()) <span style="font-weight: 400; color: var(--primary); font-size: 11px;">(You)</span> @endif</div>
                                     <div style="font-size: 11px; color: var(--text-muted);">{{ $member->user->registration_number }} · {{ ucfirst($member->role) }}</div>
+                                    
+                                    @php
+                                        $userSkills = is_array($member->user->skills) ? $member->user->skills : [];
+                                        $surveySkills = ($member->user->studentSkillsSurvey && is_array($member->user->studentSkillsSurvey->skills)) 
+                                            ? $member->user->studentSkillsSurvey->skills 
+                                            : [];
+                                        $allSkills = array_unique(array_merge($userSkills, $surveySkills));
+                                    @endphp
+                                    
+                                    @if(count($allSkills) > 0)
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                                            @foreach(array_slice($allSkills, 0, 5) as $skill)
+                                                <span class="badge" style="font-size: 9px; padding: 1px 6px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.15)">{{ $skill }}</span>
+                                            @endforeach
+                                            @if(count($allSkills) > 5)
+                                                <span style="font-size: 9px; color: var(--text-muted);">+{{ count($allSkills) - 5 }} more</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 <div style="text-align: right;">
                                     <div style="font-size: 12px; font-weight: 600;">{{ $member->user->email }}</div>

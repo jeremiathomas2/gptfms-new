@@ -107,9 +107,13 @@
                 let membersHtml = group.members.map(m => {
                     if (!m.user) return '';
                     
-                    const skillsBadgeHtml = m.user.skills && m.user.skills.length > 0 
+                    const userSkills = m.user.skills || [];
+                    const surveyedSkills = m.user.surveyed_skills || [];
+                    const allSkills = [...new Set([...userSkills, ...surveyedSkills.map(s => s.name)])];
+                    
+                    const skillsBadgeHtml = allSkills.length > 0 
                         ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
-                            ${m.user.skills.map(s => `<span class="badge" style="font-size: 9px; padding: 1px 6px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.15)">${s}</span>`).join('')}
+                            ${allSkills.map(s => `<span class="badge" style="font-size: 9px; padding: 1px 6px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.15)">${s}</span>`).join('')}
                            </div>` 
                         : '';
 

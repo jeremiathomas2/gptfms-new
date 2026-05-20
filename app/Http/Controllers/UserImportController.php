@@ -109,7 +109,7 @@ class UserImportController extends Controller
                     continue;
                 }
 
-                $password = Str::random(10);
+                $password = 'password';
                 $user = User::create([
                     'first_name' => $firstName,
                     'middle_name' => $middleName,
@@ -121,6 +121,7 @@ class UserImportController extends Controller
                     'registration_number' => $regNumber ?? ($type === 'student' ? ('REG-' . strtoupper(Str::random(8))) : null),
                     'password' => Hash::make($password),
                     'status' => 'active',
+                    'email_verified_at' => now(), // Auto-verify to allow immediate login
                 ]);
 
                 $user->assignRole($type);
