@@ -61,7 +61,7 @@ class UserImportController extends Controller
 
         $header = fgetcsv($handle, 1000, ",");
         if (!$header) {
-            fclose($handle);
+            if (is_resource($handle)) fclose($handle);
             return response()->json(['success' => false, 'message' => 'The CSV file is empty.'], 422);
         }
 
@@ -162,11 +162,11 @@ class UserImportController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Import Exception: " . $e->getMessage());
-            if (isset($handle)) fclose($handle);
+            if (isset($handle) && is_resource($handle)) fclose($handle);
             return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
         }
 
-        if (isset($handle)) fclose($handle);
+        if (isset($handle) && is_resource($handle)) fclose($handle);
 
         return response()->json([
             'success' => true, 
