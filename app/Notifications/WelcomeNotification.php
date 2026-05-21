@@ -7,7 +7,9 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Services\NextSmsService;
 
-class WelcomeNotification extends Notification
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class WelcomeNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,6 +29,9 @@ class WelcomeNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        // Trigger SMS as well (this will run on the queue)
+        $this->sendSms($notifiable);
+
         $mail = (new MailMessage)
             ->subject('Welcome to GPTF Management System')
             ->greeting('Hello ' . $notifiable->name . '!')

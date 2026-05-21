@@ -66,7 +66,6 @@ class AdminController extends Controller
         try {
             $notification = new UserCreatedNotification($validated['password']);
             $user->notify($notification);
-            $notification->sendSms($user);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Manual User Creation Notification failed: " . $e->getMessage());
         }

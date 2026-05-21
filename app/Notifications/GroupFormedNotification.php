@@ -7,7 +7,9 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Services\NextSmsService;
 
-class GroupFormedNotification extends Notification
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class GroupFormedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,6 +29,9 @@ class GroupFormedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        // Trigger SMS as well (this will run on the queue)
+        $this->sendSms($notifiable);
+
         $mail = (new MailMessage)
             ->subject('Group Formation Notification')
             ->greeting('Hello ' . $notifiable->name . '!');

@@ -72,51 +72,69 @@ class UserImportController extends Controller
         $count = 0;
         $errors = [];
         $duplicates = [];
+        
+        // --- OPTIMIZATION: Pre-fetch all data for duplicate check ---
+        $rows = [];
+        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+            if (empty($data) || (count($data) === 1 && empty($data[0]))) continue;
+            if (count($header) !== count($data)) {
+                $errors[] = "Skipping row: column count mismatch.";
+                continue;
+            }
+            $rows[] = array_combine($header, $data);
+        }
+        fclose($handle);
+
+        $emails = collect($rows)->pluck('email')->filter()->toArray();
+        $phones = collect($rows)->pluck('phonenumber')->merge(collect($rows)->pluck('phone'))->filter()->toArray();
+        $regNumbers = collect($rows)->pluck('registrationnumber')->merge(collect($rows)->pluck('regnumber'))->filter()->toArray();
+
+        $existingUsers = User::whereIn('email', $emails)
+            ->orWhereIn('phone', $phones)
+            ->orWhereIn('registration_number', $regNumbers)
+            ->get();
+
+        $existingEmails = $existingUsers->pluck('email')->toArray();
+        $existingPhones = $existingUsers->pluck('phone')->toArray();
+        $existingRegs = $existingUsers->pluck('registration_number')->toArray();
+
+        foreach ($rows as $row) {
+            $email = $row['email'] ?? null;
+            $firstName = $row['firstname'] ?? '';
+            $lastName = $row['lastname'] ?? '';
+            $phone = $row['phonenumber'] ?? $row['phone'] ?? null;
+            $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? null;
+
+            if (!$email) {
+                $errors[] = "Skipping row: Email address is missing.";
+                continue;
+            }
+
+            if (in_array($email, $existingEmails) || ($phone && in_array($phone, $existingPhones)) || ($regNumber && in_array($regNumber, $existingRegs))) {
+                $reason = in_array($email, $existingEmails) ? 'Email' : (in_array($phone, $existingPhones) ? 'Phone' : 'Reg Number');
+                $duplicates[] = "{$firstName} {$lastName} ({$email}) - Duplicate found by {$reason}";
+                continue;
+            }
+        }
+
+        if (!empty($duplicates)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Duplicates detected. Please crosscheck the CSV file.',
+                'duplicates' => $duplicates
+            ], 422);
+        }
 
         try {
             DB::beginTransaction();
-            
-            while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                if (empty($data) || (count($data) === 1 && empty($data[0]))) {
-                    continue;
-                }
-
-                if (count($header) !== count($data)) {
-                    $errors[] = "Skipping row: column count mismatch.";
-                    continue;
-                }
-                
-                $row = array_combine($header, $data);
-                
-                $email = $row['email'] ?? null;
+            foreach ($rows as $row) {
+                $email = $row['email'];
                 $firstName = $row['firstname'] ?? '';
                 $middleName = $row['middlename'] ?? null;
                 $lastName = $row['lastname'] ?? '';
                 $phone = $row['phonenumber'] ?? $row['phone'] ?? null;
                 $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? null;
                 $gender = $row['gender'] ?? 'other';
-
-                if (!$email) {
-                    $errors[] = "Skipping row: Email address is missing.";
-                    continue;
-                }
-
-                // Check for duplicates
-                $existingUser = User::where('email', $email)
-                    ->orWhere(function($q) use ($phone) {
-                        if ($phone) $q->where('phone', $phone);
-                    })
-                    ->orWhere(function($q) use ($regNumber) {
-                        if ($regNumber) $q->where('registration_number', $regNumber);
-                    })
-                    ->first();
-
-                if ($existingUser) {
-                    $duplicates[] = "{$firstName} {$lastName} ({$email}) - Duplicate found by " . 
-                        ($existingUser->email === $email ? 'Email' : 
-                        ($existingUser->phone === $phone ? 'Phone' : 'Reg Number'));
-                    continue;
-                }
 
                 $password = 'password';
                 $user = User::create([
@@ -135,27 +153,11 @@ class UserImportController extends Controller
 
                 $user->assignRole($type);
                 
-                try {
-                    $notification = new WelcomeNotification($password, $type);
-                    $user->notify($notification);
-                    $notification->sendSms($user);
-                } catch (\Exception $e) {
-                    Log::error("Notification failed for {$email}: " . $e->getMessage());
-                }
+                // Queued Notification (ShouldQueue handles the background processing)
+                $user->notify(new WelcomeNotification($password, $type));
 
                 $count++;
             }
-
-            if (!empty($duplicates)) {
-                DB::rollBack();
-                fclose($handle);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Duplicates detected. Please crosscheck the CSV file.',
-                    'duplicates' => $duplicates
-                ], 422);
-            }
-
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();

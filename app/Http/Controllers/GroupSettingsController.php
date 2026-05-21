@@ -176,7 +176,6 @@ class GroupSettingsController extends Controller
                     try {
                         $notification = new GroupFormedNotification($data, 'student');
                         $member->user->notify($notification);
-                        $notification->sendSms($member->user);
                     } catch (\Exception $e) {
                         Log::error("Formation notification failed for student {$member->user->email}: " . $e->getMessage());
                     }
@@ -189,7 +188,6 @@ class GroupSettingsController extends Controller
             try {
                 $notification = new GroupFormedNotification($data, 'supervisor');
                 $supData['user']->notify($notification);
-                $notification->sendSms($supData['user']);
             } catch (\Exception $e) {
                 Log::error("Formation notification failed for supervisor {$supData['user']->email}: " . $e->getMessage());
             }
