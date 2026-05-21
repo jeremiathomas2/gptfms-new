@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ═══════════ NOTIFICATIONS ═══════════
 window.loadNotifications = function() {
+  const syncBtn = document.getElementById('sync-btn');
+  const syncIcon = syncBtn ? syncBtn.querySelector('i') : null;
+  
+  if (syncIcon) syncIcon.classList.add('spin');
+
   fetch('/notifications')
     .then(res => res.json())
     .then(data => {
@@ -98,6 +103,11 @@ window.loadNotifications = function() {
           </div>
         `;
       }).join('');
+    })
+    .finally(() => {
+      if (syncIcon) {
+        setTimeout(() => syncIcon.classList.remove('spin'), 500);
+      }
     });
 }
 
@@ -131,7 +141,38 @@ window.markAllAsRead = function() {
   });
 }
 
+// ═══════════ SERVER SYNC ═══════════
+window.syncWithServer = function() {
+  if (!navigator.onLine) {
+    toast('You are offline. Cannot sync.', '⚠️');
+    return;
+  }
+  
+  toast('Syncing with server...', '<i class="uil uil-sync spin"></i>');
+  loadNotifications();
+  // Add other refresh calls here if needed (e.g., refresh current page data)
+}
+
+window.updateOnlineStatus = function() {
+  const syncBtn = document.getElementById('sync-btn');
+  if (!syncBtn) return;
+  
+  if (navigator.onLine) {
+    syncBtn.classList.remove('sync-offline');
+    syncBtn.classList.add('sync-online');
+    syncBtn.title = "Online - Click to sync";
+  } else {
+    syncBtn.classList.remove('sync-online');
+    syncBtn.classList.add('sync-offline');
+    syncBtn.title = "Offline - Connection lost";
+  }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
 document.addEventListener('DOMContentLoaded', () => {
+  updateOnlineStatus();
   loadNotifications();
   // Poll for notifications every 30 seconds
   setInterval(loadNotifications, 30000);

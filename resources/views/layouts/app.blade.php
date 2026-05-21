@@ -313,7 +313,9 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
                 <span id="page-breadcrumb" class="page-breadcrumb">@yield('breadcrumb', 'Dashboard')</span>
             </div>
             <div class="navbar-right">
-                <button class="navbar-btn" onclick="toast('Synced with server','<i class=\'uil uil-sync\'></i>')"><i class="uil uil-sync"></i></button>
+                <button id="sync-btn" class="navbar-btn" onclick="syncWithServer()" title="Sync with server">
+                    <i class="uil uil-sync"></i>
+                </button>
                 <div style="position:relative">
                     <button class="navbar-btn" onclick="toggleDropdown('notif-dropdown')" id="notif-btn">
                         <span id="notif-dot" class="dot" style="display:none"></span>

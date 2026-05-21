@@ -598,6 +598,23 @@ input[type="range"] { width: 100%; accent-color: var(--primary); }
   cursor: pointer; border: 2px solid transparent;
   transition: transform var(--transition), border-color var(--transition);
 }
+
+/* ═══════════════════════════════════════════
+   SYNC STATUS
+═══════════════════════════════════════════ */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+.sync-offline {
+  color: var(--danger) !important;
+}
+.sync-online {
+  color: var(--secondary) !important;
+}
 .swatch:hover { transform: scale(1.15); }
 .swatch.selected { border-color: var(--text); }
 
