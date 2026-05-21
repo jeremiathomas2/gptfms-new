@@ -13,9 +13,15 @@ use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\GroupSettingsController;
 use App\Http\Controllers\UserImportController;
+use App\Http\Controllers\NotificationController;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     Route::get('/groups', [GroupController::class, 'index'])->name('groups');
     Route::get('/my-group', [GroupController::class, 'myGroup'])->name('my_group');

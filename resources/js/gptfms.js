@@ -60,6 +60,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ═══════════ NOTIFICATIONS ═══════════
+window.loadNotifications = function() {
+  fetch('/notifications')
+    .then(res => res.json())
+    .then(data => {
+      const container = document.getElementById('notif-items-container');
+      const dot = document.getElementById('notif-dot');
+      
+      if (!container) return;
+
+      if (data.unreadCount > 0) {
+        if (dot) dot.style.display = 'block';
+      } else {
+        if (dot) dot.style.display = 'none';
+      }
+
+      if (data.notifications.length === 0) {
+        container.innerHTML = '<div class="notif-item" style="text-align: center; padding: 20px;"><div class="notif-text">No notifications found.</div></div>';
+        return;
+      }
+
+      container.innerHTML = data.notifications.map(n => {
+        const title = n.data.title || 'Notification';
+        const message = n.data.message || '';
+        const icon = n.data.icon || 'uil-bell';
+        const time = new Date(n.created_at).toLocaleString();
+        const isRead = n.read_at !== null;
+
+        return `
+          <div class="notif-item ${isRead ? '' : 'unread'}" onclick="markAsRead('${n.id}', this)" style="${isRead ? '' : 'background: rgba(37,99,235,0.05); border-left: 3px solid var(--primary);'}">
+            <div class="notif-text">
+              <i class="uil ${icon} me-2" style="color: var(--primary)"></i>
+              <strong>${title}:</strong> ${message}
+            </div>
+            <div class="notif-time">${time}</div>
+          </div>
+        `;
+      }).join('');
+    });
+}
+
+window.markAsRead = function(id, el) {
+  fetch(`/notifications/${id}/read`, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json'
+    }
+  }).then(() => {
+    if (el) {
+      el.classList.remove('unread');
+      el.style.background = 'transparent';
+      el.style.borderLeft = 'none';
+    }
+    loadNotifications(); // Refresh count
+  });
+}
+
+window.markAllAsRead = function() {
+  fetch('/notifications/read-all', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Content-Type': 'application/json'
+    }
+  }).then(() => {
+    loadNotifications();
+    toast('All notifications marked as read', '<i class="uil uil-check"></i>');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadNotifications();
+  // Poll for notifications every 30 seconds
+  setInterval(loadNotifications, 30000);
+
+  const markAllBtn = document.getElementById('mark-all-read');
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', markAllAsRead);
+  }
+});
+
 // ═══════════ TOAST ═══════════
 window.toast = function(msg, icon='ℹ️') {
   const container = document.getElementById('toast-container');

@@ -66,9 +66,16 @@
 
 <!-- ═══════════════ NOTIFICATION DROPDOWN ═══════════════ -->
 <div id="notif-dropdown" class="dropdown">
-    <div class="dropdown-header"><i class="uil uil-bell me-2"></i> Notifications <span style="color:var(--text-muted);font-weight:400;font-size:11px;float:right">Mark all read</span></div>
-    <div class="notif-item"><div class="notif-text"><i class="uil uil-clipboard-notes me-2"></i> <strong>Task assigned:</strong> Design system review</div><div class="notif-time">2 min ago</div></div>
-    <div class="notif-item"><div class="notif-text"><i class="uil uil-users-alt me-2"></i> <strong>Group Alpha</strong> added you as leader</div><div class="notif-time">18 min ago</div></div>
+    <div class="dropdown-header">
+        <i class="uil uil-bell me-2"></i> Notifications 
+        <span id="mark-all-read" style="color:var(--text-muted);font-weight:400;font-size:11px;float:right;cursor:pointer">Mark all read</span>
+    </div>
+    <div id="notif-items-container" style="max-height: 300px; overflow-y: auto;">
+        <!-- Notifications will be loaded here via JS -->
+        <div class="notif-item" style="text-align: center; padding: 20px;">
+            <div class="notif-text">Loading notifications...</div>
+        </div>
+    </div>
 </div>
 
 <!-- ═══════════════ USER PROFILE DROPDOWN ═══════════════ -->
@@ -308,7 +315,10 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             <div class="navbar-right">
                 <button class="navbar-btn" onclick="toast('Synced with server','<i class=\'uil uil-sync\'></i>')"><i class="uil uil-sync"></i></button>
                 <div style="position:relative">
-                    <button class="navbar-btn" onclick="toggleDropdown('notif-dropdown')" id="notif-btn"><span class="dot"></span><i class="uil uil-bell"></i></button>
+                    <button class="navbar-btn" onclick="toggleDropdown('notif-dropdown')" id="notif-btn">
+                        <span id="notif-dot" class="dot" style="display:none"></span>
+                        <i class="uil uil-bell"></i>
+                    </button>
                 </div>
                 <a href="{{ route('settings') }}" class="navbar-btn"><i class="uil uil-setting"></i></a>
                 @auth
