@@ -30,6 +30,34 @@ window.toggleSidebar = function() {
   }
 }
 
+// Preserve Sidebar Scroll Position
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    if (sidebarNav) {
+        // Restore scroll position
+        const savedScrollPos = localStorage.getItem('gptfms-sidebar-scroll');
+        if (savedScrollPos) {
+            sidebarNav.scrollTop = parseInt(savedScrollPos, 10);
+        }
+
+        // Save scroll position on scroll (debounced)
+        let scrollTimeout;
+        sidebarNav.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                localStorage.setItem('gptfms-sidebar-scroll', sidebarNav.scrollTop);
+            }, 100);
+        });
+
+        // Save scroll position when a link is clicked
+        sidebarNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                localStorage.setItem('gptfms-sidebar-scroll', sidebarNav.scrollTop);
+            });
+        });
+    }
+});
+
 // ═══════════ TOAST ═══════════
 window.toast = function(msg, icon='ℹ️') {
   const container = document.getElementById('toast-container');

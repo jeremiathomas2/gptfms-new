@@ -28,7 +28,11 @@ class UserCreatedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         // Trigger SMS as well (this will run on the queue)
-        $this->sendSms($notifiable);
+        try {
+            $this->sendSms($notifiable);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("SMS failed in UserCreatedNotification: " . $e->getMessage());
+        }
 
         $role = $notifiable->hasRole('supervisor') ? 'Supervisor' : 'Student';
         return (new MailMessage)

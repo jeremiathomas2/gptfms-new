@@ -30,7 +30,11 @@ class WelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         // Trigger SMS as well (this will run on the queue)
-        $this->sendSms($notifiable);
+        try {
+            $this->sendSms($notifiable);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("SMS failed in WelcomeNotification: " . $e->getMessage());
+        }
 
         $mail = (new MailMessage)
             ->subject('Welcome to GPTF Management System')
