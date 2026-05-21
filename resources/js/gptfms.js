@@ -32,13 +32,15 @@ window.toggleSidebar = function() {
 
 // Preserve Sidebar Scroll Position
 document.addEventListener('DOMContentLoaded', () => {
+    // Remove preload class to enable transitions after initial state is applied
+    setTimeout(() => {
+        document.body.classList.remove('preload');
+    }, 100);
+
     const sidebarNav = document.querySelector('.sidebar-nav');
     if (sidebarNav) {
-        // Restore scroll position
-        const savedScrollPos = localStorage.getItem('gptfms-sidebar-scroll');
-        if (savedScrollPos) {
-            sidebarNav.scrollTop = parseInt(savedScrollPos, 10);
-        }
+        // Note: Initial restoration is now handled inline in app.blade.php 
+        // to prevent the "blink" during page load.
 
         // Save scroll position on scroll (debounced)
         let scrollTimeout;

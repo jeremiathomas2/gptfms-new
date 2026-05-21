@@ -56,6 +56,16 @@
 ═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 15px; }
+
+/* Prevent transitions on page load to stop "blinking" */
+.preload * {
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -ms-transition: none !important;
+  -o-transition: none !important;
+  transition: none !important;
+}
+
 body {
   font-family: 'Nunito Sans', sans-serif;
   background: var(--bg);

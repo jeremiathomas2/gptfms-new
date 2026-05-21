@@ -59,7 +59,7 @@
     @vite(['resources/css/gptfms.css', 'resources/js/gptfms.js'])
     @stack('styles')
 </head>
-<body>
+<body class="preload">
 
 <!-- ═══════════════ TOAST CONTAINER ═══════════════ -->
 <div id="toast-container"></div>
@@ -180,6 +180,12 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
 
     <!-- SIDEBAR -->
     <nav id="sidebar">
+        <script>
+            // Apply collapsed state immediately to prevent width "blink"
+            if (localStorage.getItem('gptfms-sidebar-collapsed') === 'true') {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        </script>
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon"><i class="uil uil-bullseye" style="color: #fff;"></i></div>
             <div class="sidebar-logo-text">GPT<span>FMS</span></div>
@@ -256,6 +262,16 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             </a>
             @endauth
         </div>
+        <script>
+            // Apply scroll position immediately to prevent vertical "blink"
+            (function() {
+                const nav = document.querySelector('.sidebar-nav');
+                const pos = localStorage.getItem('gptfms-sidebar-scroll');
+                if (nav && pos) {
+                    nav.scrollTop = parseInt(pos, 10);
+                }
+            })();
+        </script>
 
         <div class="sidebar-footer">
             @auth
