@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-use App\Notifications\UserCreatedNotification;
+use App\Notifications\WelcomeNotification;
 
 class UserImportController extends Controller
 {
@@ -43,7 +43,7 @@ class UserImportController extends Controller
 
     public function import(Request $request)
     {
-        set_time_limit(300); // Increase time limit to 5 minutes
+        set_time_limit(300);
 
         $request->validate([
             'file' => 'required|mimes:csv,txt',
@@ -54,7 +54,6 @@ class UserImportController extends Controller
         $type = $request->input('type');
         $handle = fopen($file->getRealPath(), "r");
         
-        // Handle BOM if present
         $bom = fread($handle, 3);
         if ($bom !== "\xEF\xBB\xBF") {
             rewind($handle);
@@ -66,46 +65,56 @@ class UserImportController extends Controller
             return response()->json(['success' => false, 'message' => 'The CSV file is empty.'], 422);
         }
 
-        // Normalize headers: trim, lowercase, remove spaces/underscores for better matching
         $header = array_map(function($h) {
             return strtolower(str_replace([' ', '_'], '', trim($h)));
         }, $header);
         
         $count = 0;
         $errors = [];
+        $duplicates = [];
 
         try {
             DB::beginTransaction();
             
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                // Skip empty lines
                 if (empty($data) || (count($data) === 1 && empty($data[0]))) {
                     continue;
                 }
 
                 if (count($header) !== count($data)) {
-                    $errors[] = "Skipping row: column count mismatch (Expected " . count($header) . ", got " . count($data) . ").";
+                    $errors[] = "Skipping row: column count mismatch.";
                     continue;
                 }
                 
                 $row = array_combine($header, $data);
                 
-                // Map common header variations
                 $email = $row['email'] ?? null;
-                $firstName = $row['firstname'] ?? $row['firstname'] ?? '';
-                $middleName = $row['middlename'] ?? $row['middlename'] ?? null;
-                $lastName = $row['lastname'] ?? $row['lastname'] ?? '';
-                $phone = $row['phonenumber'] ?? $row['phone'] ?? $row['phone_number'] ?? null;
+                $firstName = $row['firstname'] ?? '';
+                $middleName = $row['middlename'] ?? null;
+                $lastName = $row['lastname'] ?? '';
+                $phone = $row['phonenumber'] ?? $row['phone'] ?? null;
+                $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? null;
                 $gender = $row['gender'] ?? 'other';
-                $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? $row['registration_number'] ?? null;
 
                 if (!$email) {
                     $errors[] = "Skipping row: Email address is missing.";
                     continue;
                 }
 
-                if (User::where('email', $email)->exists()) {
-                    $errors[] = "Skipping {$email}: User with this email already exists.";
+                // Check for duplicates
+                $existingUser = User::where('email', $email)
+                    ->orWhere(function($q) use ($phone) {
+                        if ($phone) $q->where('phone', $phone);
+                    })
+                    ->orWhere(function($q) use ($regNumber) {
+                        if ($regNumber) $q->where('registration_number', $regNumber);
+                    })
+                    ->first();
+
+                if ($existingUser) {
+                    $duplicates[] = "{$firstName} {$lastName} ({$email}) - Duplicate found by " . 
+                        ($existingUser->email === $email ? 'Email' : 
+                        ($existingUser->phone === $phone ? 'Phone' : 'Reg Number'));
                     continue;
                 }
 
@@ -121,23 +130,32 @@ class UserImportController extends Controller
                     'registration_number' => $regNumber ?? ($type === 'student' ? ('REG-' . strtoupper(Str::random(8))) : null),
                     'password' => Hash::make($password),
                     'status' => 'active',
-                    'email_verified_at' => now(), // Auto-verify to allow immediate login
+                    'email_verified_at' => now(),
                 ]);
 
                 $user->assignRole($type);
                 
-                // Send notifications
                 try {
-                    $notification = new UserCreatedNotification($password);
+                    $notification = new WelcomeNotification($password, $type);
                     $user->notify($notification);
                     $notification->sendSms($user);
                 } catch (\Exception $e) {
                     Log::error("Notification failed for {$email}: " . $e->getMessage());
-                    // We don't skip the user if notification fails
                 }
 
                 $count++;
             }
+
+            if (!empty($duplicates)) {
+                DB::rollBack();
+                fclose($handle);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Duplicates detected. Please crosscheck the CSV file.',
+                    'duplicates' => $duplicates
+                ], 422);
+            }
+
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();

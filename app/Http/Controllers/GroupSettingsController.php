@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+use App\Notifications\GroupFormedNotification;
+
 class GroupSettingsController extends Controller
 {
     public function index()
@@ -132,6 +134,9 @@ class GroupSettingsController extends Controller
 
             DB::commit();
 
+            // 4. Send Notifications
+            $this->sendFormationNotifications($groups);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Successfully formed ' . count($groups) . ' groups with balancing applied.',
@@ -140,6 +145,54 @@ class GroupSettingsController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    protected function sendFormationNotifications($groups)
+    {
+        $supervisorGroups = [];
+
+        foreach ($groups as $group) {
+            $group->load(['members.user', 'supervisor']);
+            
+            if ($group->supervisor) {
+                if (!isset($supervisorGroups[$group->supervisor->id])) {
+                    $supervisorGroups[$group->supervisor->id] = [
+                        'user' => $group->supervisor,
+                        'group_names' => []
+                    ];
+                }
+                $supervisorGroups[$group->supervisor->id]['group_names'][] = $group->name;
+            }
+
+            foreach ($group->members as $member) {
+                if ($member->user) {
+                    $data = [
+                        'group_name' => $group->name,
+                        'supervisor_name' => $group->supervisor ? $group->supervisor->name : 'TBD',
+                        'supervisor_phone' => $group->supervisor ? ($group->supervisor->phone ?? 'N/A') : 'N/A',
+                        'supervisor_email' => $group->supervisor ? $group->supervisor->email : 'N/A',
+                    ];
+                    try {
+                        $notification = new GroupFormedNotification($data, 'student');
+                        $member->user->notify($notification);
+                        $notification->sendSms($member->user);
+                    } catch (\Exception $e) {
+                        Log::error("Formation notification failed for student {$member->user->email}: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+
+        foreach ($supervisorGroups as $supData) {
+            $data = ['groups' => $supData['group_names']];
+            try {
+                $notification = new GroupFormedNotification($data, 'supervisor');
+                $supData['user']->notify($notification);
+                $notification->sendSms($supData['user']);
+            } catch (\Exception $e) {
+                Log::error("Formation notification failed for supervisor {$supData['user']->email}: " . $e->getMessage());
+            }
         }
     }
 
