@@ -308,34 +308,6 @@ window.setTransitionSpeed = function(ms, quiet = false) {
   localStorage.setItem('gptfms-transition-speed', ms);
 }
 
-// ═══════════ CHAT ═══════════
-window.sendMessage = function(e) {
-  if (e.key === 'Enter') sendMsgBtn();
-}
-window.sendMsgBtn = function() {
-  const input = document.getElementById('chat-input-field');
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) return;
-  const msgs = document.querySelector('.chat-messages');
-  if (!msgs) return;
-  const msg = document.createElement('div');
-  msg.className = 'msg me';
-  msg.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">You · just now</div>`;
-  msgs.appendChild(msg);
-  msgs.scrollTop = msgs.scrollHeight;
-  input.value = '';
-  // Simulate reply
-  setTimeout(() => {
-    const reply = document.createElement('div');
-    reply.className = 'msg them';
-    const replies = ['Got it! 👍', 'Thanks for the update!', 'On it!', 'Nice work! 🎉', 'Let\'s review this together.'];
-    reply.innerHTML = `<div class="msg-bubble">${replies[Math.floor(Math.random()*replies.length)]}</div><div class="msg-time">Aisha · just now</div>`;
-    msgs.appendChild(reply);
-    msgs.scrollTop = msgs.scrollHeight;
-  }, 1200);
-}
-
 // ═══════════ INITIALIZATION ═══════════
 function initSettings() {
   const sidebarCollapsed = localStorage.getItem('gptfms-sidebar-collapsed') === 'true' || window.__SIDEBAR_COLLAPSED__;

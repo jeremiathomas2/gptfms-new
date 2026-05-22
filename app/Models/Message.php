@@ -51,31 +51,15 @@ class Message extends Model
 
     public function group(): BelongsTo
     {
-        return $this->belongsTo(Group::class);
+        return $this->belongsTo(Group::class, 'group_id');
     }
 
-    // Scopes
-    public function scopeUnread($query)
+    public function scopeBetweenUsers($query, $user1, $user2)
     {
-        return $query->where('is_read', false);
-    }
-
-    public function scopeBetweenUsers($query, $userId1, $userId2)
-    {
-        return $query->where(function ($q) use ($userId1, $userId2) {
-            $q->where('sender_id', $userId1)->where('receiver_id', $userId2);
-        })->orWhere(function ($q) use ($userId1, $userId2) {
-            $q->where('sender_id', $userId2)->where('receiver_id', $userId1);
+        return $query->where(function ($q) use ($user1, $user2) {
+            $q->where('sender_id', $user1)->where('receiver_id', $user2);
+        })->orWhere(function ($q) use ($user1, $user2) {
+            $q->where('sender_id', $user2)->where('receiver_id', $user1);
         });
-    }
-
-    public function scopeInGroup($query, $groupId)
-    {
-        return $query->where('group_id', $groupId);
-    }
-
-    public function scopeByType($query, string $type)
-    {
-        return $query->where('type', $type);
     }
 }

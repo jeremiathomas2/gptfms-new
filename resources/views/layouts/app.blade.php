@@ -222,6 +222,11 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             @endrole
 
             <div class="sidebar-section-label">Work</div>
+            @role('admin')
+            <a href="{{ route('groups.settings') }}" class="nav-item {{ request()->routeIs('groups.settings') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">Group Settings</span>
+            </a>
+            @endrole
             <a href="{{ route('projects') }}" class="nav-item {{ request()->routeIs('projects') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-folder"></i></span><span class="nav-label">Projects</span>
             </a>
@@ -250,9 +255,6 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             </a>
             <a href="{{ route('admin.groups') }}" class="nav-item {{ request()->routeIs('admin.groups') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">Group Management</span>
-            </a>
-            <a href="{{ route('groups.settings') }}" class="nav-item {{ request()->routeIs('groups.settings') ? 'active' : '' }}">
-                <span class="nav-icon"><i class="uil uil-cog"></i></span><span class="nav-label">Formation Settings</span>
             </a>
             @endrole
 

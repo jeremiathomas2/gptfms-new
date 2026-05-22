@@ -34,6 +34,7 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
         'email_verified_at',
         'last_login_at',
         'last_login_ip',
+        'last_seen_at',
     ];
 
     protected $hidden = [
@@ -44,12 +45,14 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
+        'last_seen_at' => 'datetime',
         'password' => 'hashed',
     ];
 
     protected $appends = [
         'full_name',
         'initials',
+        'is_online',
     ];
 
     protected static function boot()
@@ -96,6 +99,15 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
             'role' => $this->getRoleNames()->first(),
             'permissions' => $this->getAllPermissions()->pluck('name'),
         ];
+    }
+
+    public function getIsOnlineAttribute(): bool
+    {
+        if (!$this->last_seen_at) {
+            return false;
+        }
+        
+        return $this->last_seen_at->gt(now()->subMinutes(5));
     }
 
     // Relationships

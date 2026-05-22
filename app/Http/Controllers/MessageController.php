@@ -93,14 +93,17 @@ class MessageController extends Controller
         ]);
     }
 
-    public function getMessages($type, $id)
+    public function getMessages(Request $request, $type, $id)
     {
         $user = Auth::user();
+        $sinceId = $request->query('since_id');
+        
+        $query = Message::with('sender');
         
         if ($type === 'group') {
             $group = Group::findOrFail($id);
             
-            // Authorization: Check if member OR supervisor OR admin
+            // Authorization
             $isMember = $group->members()->where('user_id', $user->id)->exists();
             $isSupervisor = $group->supervisor_id == $user->id;
             $isAdmin = $user->hasRole('admin');
@@ -109,17 +112,16 @@ class MessageController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
             
-            $messages = Message::where('group_id', $id)
-                ->with('sender')
-                ->orderBy('created_at', 'asc')
-                ->get();
+            $query->where('group_id', $id);
         } else {
-            $messages = Message::betweenUsers($user->id, $id)
-                ->whereNull('group_id')
-                ->with('sender')
-                ->orderBy('created_at', 'asc')
-                ->get();
+            $query->betweenUsers($user->id, $id)->whereNull('group_id');
         }
+
+        if ($sinceId) {
+            $query->where('id', '>', $sinceId);
+        }
+
+        $messages = $query->orderBy('created_at', 'asc')->get();
 
         return response()->json($messages);
     }

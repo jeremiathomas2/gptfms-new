@@ -14,6 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\GroupSettingsController;
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PasswordResetOtpController;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -23,15 +24,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
-    Route::get('/groups', [GroupController::class, 'index'])->name('groups');
-    Route::get('/my-group', [GroupController::class, 'myGroup'])->name('my_group');
     Route::get('/groups/settings', [GroupSettingsController::class, 'index'])->name('groups.settings');
-    Route::get('/groups/{group}', [GroupController::class, 'show'])->name('groups.show');
-    Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
-    
     Route::post('/groups/settings', [GroupSettingsController::class, 'update'])->name('groups.settings.update');
     Route::post('/groups/settings/start', [GroupSettingsController::class, 'startCountdown'])->name('groups.settings.start');
     Route::post('/groups/settings/auto-form', [GroupSettingsController::class, 'autoFormGroups'])->name('groups.settings.auto_form');
+
+    Route::get('/groups', [GroupController::class, 'index'])->name('groups');
+    Route::get('/my-group', [GroupController::class, 'myGroup'])->name('my_group');
+    Route::get('/groups/{group}', [GroupController::class, 'show'])->name('groups.show');
+    Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
 
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects');
     Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
@@ -99,9 +100,10 @@ Route::middleware(['guest'])->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register']);
-    
-    // Placeholder for password reset to avoid 500 error
-    Route::get('/forgot-password', function () {
-        return "Password reset functionality coming soon.";
-    })->name('password.request');
+
+    Route::get('/forgot-password', [PasswordResetOtpController::class, 'showRequest'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetOtpController::class, 'sendOtp'])->name('password.otp.send');
+    Route::get('/reset-password', [PasswordResetOtpController::class, 'showReset'])->name('password.reset');
+    Route::post('/reset-password/verify', [PasswordResetOtpController::class, 'verifyOtp'])->name('password.otp.verify');
+    Route::post('/reset-password', [PasswordResetOtpController::class, 'resetPassword'])->name('password.update');
 });

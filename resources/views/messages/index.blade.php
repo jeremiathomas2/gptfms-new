@@ -110,9 +110,12 @@
                 <button class="btn btn-ghost" onclick="document.getElementById('attachment-input').click()" style="font-size:18px;padding:0"><i class="uil uil-paperclip"></i></button>
                 <input type="file" id="attachment-input" style="display: none;" multiple onchange="handleAttachmentSelect(event)">
                 
-                <textarea class="chat-input" placeholder="Type a message… (Shift+Enter for new line)" id="chat-input-field" onkeydown="handleKey(event)" oninput="autoExpand(this)" rows="1" style="resize: none; max-height: 150px; overflow-y: auto; padding-top: 10px;"></textarea>
+                <textarea class="chat-input" placeholder="Type a message… (Shift+Enter for new line)" id="chat-input-field" onkeydown="handleChatKeydown(event)" oninput="autoExpand(this)" rows="1" style="resize: none; max-height: 150px; overflow-y: hidden; padding: 10px 16px; line-height: 1.45;"></textarea>
                 
-                <button class="btn btn-primary btn-sm" onclick="handleSend()"><i class="uil uil-message me-1"></i> Send</button>
+                <button class="btn btn-primary btn-sm" id="send-msg-btn" onclick="sendMessage()">
+                    <span class="btn-text"><i class="uil uil-message me-1"></i> Send</span>
+                    <span class="btn-loader" style="display: none;"><i class="uil uil-spinner-alt uil-spin"></i></span>
+                </button>
             </div>
         </div>
         <div class="chat-main" id="no-chat-selected" style="display: flex; align-items: center; justify-content: center; background: var(--bg-soft);">
@@ -133,6 +136,8 @@
     let currentFilter = 'groups';
     let searchTimeout = null;
     let selectedFiles = [];
+    let lastMessageId = 0;
+    let isFetching = false;
 
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -154,41 +159,43 @@
         // Close emoji picker when clicking outside
         document.addEventListener('click', function(e) {
             const picker = document.getElementById('emoji-picker');
-            const smileBtn = document.querySelector('.uil-smile').parentElement;
-            if (picker && picker.style.display === 'block' && !picker.contains(e.target) && e.target !== smileBtn && !smileBtn.contains(e.target)) {
+            const smileBtn = document.querySelector('.uil-smile')?.parentElement;
+            if (picker && picker.style.display === 'block' && !picker.contains(e.target) && e.target !== smileBtn && !smileBtn?.contains(e.target)) {
                 picker.style.display = 'none';
             }
         });
     });
 
-    function autoExpand(textarea) {
+    window.autoExpand = function(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
     }
 
-    function toggleEmojiPicker() {
+    window.toggleEmojiPicker = function() {
         const picker = document.getElementById('emoji-picker');
         picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
     }
 
-    function insertEmoji(emoji) {
+    window.insertEmoji = function(emoji) {
         const input = document.getElementById('chat-input-field');
         input.value += emoji;
         input.focus();
-        // Keep picker open for multiple emojis? No, usually it closes.
-        // toggleEmojiPicker(); 
         autoExpand(input);
     }
 
-    function handleAttachmentSelect(e) {
+    window.handleAttachmentSelect = function(e) {
         const files = Array.from(e.target.files);
         selectedFiles = [...selectedFiles, ...files];
         renderAttachmentPreview();
     }
 
-    function removeAttachment(index) {
+    window.removeAttachment = function(index) {
         selectedFiles.splice(index, 1);
         renderAttachmentPreview();
+    }
+
+    window.openNewChatModal = function() {
+        toast('Search for users feature coming soon!', '<i class="uil uil-search"></i>');
     }
 
     function renderAttachmentPreview() {
@@ -240,25 +247,25 @@
                     const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
                     chatList.appendChild(item);
                     if (autoType === 'group' && autoId == group.id) {
-                        targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item };
+                        targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item, isOnline: false };
                     }
                 });
             } else if (currentFilter === 'students') {
                 allChatData.students.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('private', user.id, user.name, 'Student', initials);
+                    const item = createChatItem('private', user.id, user.name, 'Student', initials, '', user.is_online);
                     chatList.appendChild(item);
                     if (autoType === 'private' && autoId == user.id) {
-                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
                     }
                 });
             } else if (currentFilter === 'supervisors') {
                 allChatData.supervisors.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('private', user.id, user.name, 'Supervisor', initials);
+                    const item = createChatItem('private', user.id, user.name, 'Supervisor', initials, '', user.is_online);
                     chatList.appendChild(item);
                     if (autoType === 'private' && autoId == user.id) {
-                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                        targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
                     }
                 });
             }
@@ -279,7 +286,7 @@
                 chatList.appendChild(item);
                 
                 if (autoType === 'group' && autoId == group.id) {
-                    targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item };
+                    targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item, isOnline: false };
                 }
             });
 
@@ -287,18 +294,18 @@
             filteredUsers.forEach(user => {
                 const initials = user.initials || user.name.substring(0, 2).toUpperCase();
                 const groupBadge = user.group_name ? `<span class="badge badge-blue" style="font-size: 9px; margin-left: 5px; padding: 2px 5px;">${user.group_name}</span>` : '';
-                const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge);
+                const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge, user.is_online);
                 chatList.appendChild(item);
 
                 if (autoType === 'private' && autoId == user.id) {
-                    targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item };
+                    targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
                 }
             });
         }
 
         // Auto-select if requested
         if (targetItem) {
-            selectChat(targetItem.type, targetItem.id, targetItem.name, targetItem.initials, targetItem.element);
+            selectChat(targetItem.type, targetItem.id, targetItem.name, targetItem.initials, targetItem.element, targetItem.isOnline);
         }
     }
 
@@ -309,17 +316,20 @@
         renderChatList();
     }
 
-    function createChatItem(type, id, name, preview, initials, badge = '') {
+    function createChatItem(type, id, name, preview, initials, badge = '', isOnline = false) {
         const div = document.createElement('div');
         div.className = 'chat-item';
         if (activeChat && activeChat.type === type && activeChat.id === id) {
             div.classList.add('active');
         }
         
-        div.onclick = (e) => selectChat(type, id, name, initials, div);
+        div.onclick = (e) => selectChat(type, id, name, initials, div, isOnline);
         
         div.innerHTML = `
-            <div class="chat-av" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">${initials}</div>
+            <div class="chat-av" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">
+                ${initials}
+                <div class="online-dot ${isOnline ? 'active' : ''}"></div>
+            </div>
             <div>
                 <div class="chat-name">${name}${badge}</div>
                 <div class="chat-preview">${preview}</div>
@@ -328,15 +338,15 @@
         return div;
     }
 
-    function selectChat(type, id, name, initials, element = null) {
+    function selectChat(type, id, name, initials, element = null, isOnline = false) {
         activeChat = { type, id, name, initials };
+        lastMessageId = 0;
         
         // UI Updates
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
         if (element) {
             element.classList.add('active');
         } else {
-            // Find element if not provided (e.g. from auto-select)
             const items = document.querySelectorAll('.chat-item');
             items.forEach(item => {
                 if (item.querySelector('.chat-name').innerText.includes(name)) {
@@ -351,9 +361,9 @@
         document.getElementById('active-chat-name').innerText = name;
         document.getElementById('active-chat-av').innerText = initials;
         
-        let statusHtml = type === 'group' ? '<i class="uil uil-users-alt me-1"></i> Group Chat' : '<i class="uil uil-circle me-1" style="font-size:8px; color: #10B981"></i> Online';
+        let statusHtml = type === 'group' ? '<i class="uil uil-users-alt me-1"></i> Group Chat' : 
+            (isOnline ? '<i class="uil uil-circle me-1" style="font-size:8px; color: #10B981"></i> Online' : '<i class="uil uil-circle me-1" style="font-size:8px; color: var(--text-muted)"></i> Offline');
         
-        // Add group info to status if available (for supervisors)
         if (type === 'private' && element) {
             const badge = element.querySelector('.badge');
             if (badge) {
@@ -362,75 +372,124 @@
         }
         
         document.getElementById('active-chat-status').innerHTML = statusHtml;
+        document.getElementById('chat-messages').innerHTML = '<div style="display: flex; justify-content: center; padding: 40px;"><div class="spinner"></div></div>';
         
-        loadMessages();
+        loadMessages(true);
         
-        // Setup refresh interval
         if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(loadMessages, 3000); // Refresh every 3 seconds
+        refreshInterval = setInterval(() => loadMessages(false), 2000); 
     }
 
-    function loadMessages() {
-        if (!activeChat) return;
+    function loadMessages(isFirstLoad = false) {
+        if (!activeChat || isFetching) return;
         
-        fetch(`/messages/${activeChat.type}/${activeChat.id}`)
+        isFetching = true;
+        const url = `/messages/${activeChat.type}/${activeChat.id}?since_id=${lastMessageId}`;
+        
+        fetch(url)
             .then(response => response.json())
             .then(messages => {
                 const container = document.getElementById('chat-messages');
                 const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
                 
-                container.innerHTML = '';
-                messages.forEach(msg => {
-                    const isMe = msg.sender_id == {{ auth()->id() }};
-                    const div = document.createElement('div');
-                    div.className = `msg ${isMe ? 'me' : 'them'}`;
-                    
-                    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    const senderName = isMe ? 'You' : (msg.sender ? msg.sender.name : 'Unknown');
-                    
-                    let attachmentHtml = '';
-                    if (msg.attachments && msg.attachments.length > 0) {
-                        attachmentHtml = '<div class="msg-attachments" style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">';
-                        msg.attachments.forEach(att => {
-                            const fileName = att.name || att.path.split('/').pop();
-                            attachmentHtml += `
-                                <a href="/storage/${att.path}" target="_blank" class="badge badge-gray" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 5px;">
-                                    <i class="uil uil-file-download-alt"></i> ${fileName}
-                                </a>
-                            `;
-                        });
-                        attachmentHtml += '</div>';
-                    }
+                if (isFirstLoad) container.innerHTML = '';
 
-                    div.innerHTML = `
-                        <div class="msg-bubble">
-                            ${msg.content}
-                            ${attachmentHtml}
-                        </div>
-                        <div class="msg-time">${senderName} · ${time}</div>
-                    `;
-                    container.appendChild(div);
-                });
-                
-                if (wasAtBottom) {
-                    container.scrollTop = container.scrollHeight;
+                if (messages.length > 0) {
+                    messages.forEach(msg => {
+                        if (msg.id > lastMessageId) {
+                            lastMessageId = msg.id;
+                            
+                            // If this is my message, check for and remove the optimistic version
+                            if (msg.sender_id == {{ auth()->id() }}) {
+                                const optimisticMessages = document.querySelectorAll('.msg.me[data-is-optimistic="true"]');
+                                for (let opt of optimisticMessages) {
+                                    // Match by content to identify the correct optimistic message
+                                    const optContent = opt.querySelector('.msg-bubble').innerText.replace('Sending...', '').trim();
+                                    if (optContent === msg.content.trim()) {
+                                        opt.remove();
+                                        break; // Found and removed, stop looking
+                                    }
+                                }
+                            }
+                            
+                            appendMessageToUI(msg);
+                        }
+                    });
+
+                    if (wasAtBottom || isFirstLoad) {
+                        container.scrollTop = container.scrollHeight;
+                    }
                 }
+                isFetching = false;
+            })
+            .catch(() => {
+                isFetching = false;
             });
     }
 
-    function handleKey(e) {
+    function appendMessageToUI(msg, isOptimistic = false) {
+        const container = document.getElementById('chat-messages');
+        const isMe = msg.sender_id == {{ auth()->id() }};
+        const div = document.createElement('div');
+        div.className = `msg ${isMe ? 'me' : 'them'}`;
+        if (isOptimistic) {
+            div.style.opacity = '0.7';
+            div.setAttribute('data-is-optimistic', 'true');
+            div.setAttribute('data-temp-timestamp', new Date().getTime());
+        }
+        
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...';
+        const senderName = isMe ? 'You' : (msg.sender ? msg.sender.name : 'Unknown');
+        
+        let attachmentHtml = '';
+        if (msg.attachments && msg.attachments.length > 0) {
+            attachmentHtml = '<div class="msg-attachments" style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">';
+            msg.attachments.forEach(att => {
+                const fileName = att.name || att.path.split('/').pop();
+                attachmentHtml += `
+                    <a href="/storage/${att.path}" target="_blank" class="badge badge-gray" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="uil uil-file-download-alt"></i> ${fileName}
+                    </a>
+                `;
+            });
+            attachmentHtml += '</div>';
+        }
+
+        const contentHtml = msg.content ? `<span>${msg.content.trim()}</span>` : '';
+        div.innerHTML = `<div class="msg-bubble">${contentHtml}${attachmentHtml}${isOptimistic ? ' <i class="uil uil-spinner-alt uil-spin" style="font-size: 10px; margin-left: 5px;"></i>' : ''}</div><div class="msg-time">${senderName} · ${time}</div>`;
+        container.appendChild(div);
+    }
+
+    window.handleChatKeydown = function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSend();
+            sendMessage();
         }
     }
 
-    function handleSend() {
+    window.sendMessage = function() {
         const input = document.getElementById('chat-input-field');
+        const btn = document.getElementById('send-msg-btn');
         const content = input.value.trim();
         
-        if (!content && selectedFiles.length === 0 || !activeChat) return;
+        if ((!content && selectedFiles.length === 0) || !activeChat || btn.disabled) return;
         
+        // Disable button and show loader
+        btn.disabled = true;
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loader').style.display = 'inline-block';
+
+        // Optimistic UI Update
+        const tempMsg = {
+            sender_id: {{ auth()->id() }},
+            content: content,
+            created_at: new Date().toISOString(),
+            attachments: selectedFiles.map(f => ({ name: f.name, path: '#' }))
+        };
+        appendMessageToUI(tempMsg, true);
+        const container = document.getElementById('chat-messages');
+        container.scrollTop = container.scrollHeight;
+
         const formData = new FormData();
         formData.append('content', content);
         formData.append('type', activeChat.type);
@@ -440,9 +499,10 @@
             formData.append(`attachments[${index}]`, file);
         });
 
-        // Reset input immediately for better UX
+        // Clear inputs immediately for better UX
         input.value = '';
         input.style.height = 'auto';
+        const filesToClear = [...selectedFiles];
         selectedFiles = [];
         document.getElementById('attachment-input').value = '';
         renderAttachmentPreview();
@@ -455,18 +515,30 @@
             body: formData
         })
         .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
+            if (!response.ok) return response.json().then(err => { throw err; });
             return response.json();
         })
         .then(message => {
-            loadMessages();
+            loadMessages(); // Trigger update to replace optimistic msg
         })
         .catch(error => {
             console.error('Error sending message:', error);
-            const msg = error.error || error.message || 'Failed to send message';
-            toast(msg, '<i class="uil uil-exclamation-circle"></i>');
+            // Revert UI on error
+            input.value = content;
+            selectedFiles = filesToClear;
+            renderAttachmentPreview();
+            
+            // Remove optimistic message on error
+            const opt = document.querySelector(`[data-temp-id="${tempMsg.created_at}"]`);
+            if (opt) opt.innerHTML = '<div class="msg-bubble" style="background: var(--danger-light); color: var(--danger);">Failed to send message. Click to retry.</div>';
+            
+            toast('Failed to send message. Please try again.', '<i class="uil uil-exclamation-triangle"></i>');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.querySelector('.btn-text').style.display = 'inline-block';
+            btn.querySelector('.btn-loader').style.display = 'none';
+            input.focus();
         });
     }
 </script>

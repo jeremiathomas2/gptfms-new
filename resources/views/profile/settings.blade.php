@@ -130,16 +130,19 @@
                         <div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">JPG or PNG, max 2MB</div>
                     </div>
                 </div>
-                <div class="form-row-3">
-                    <div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="profile-first-name" value="{{ $user->first_name }}"/></div>
-                    <div class="form-group"><label class="form-label">Middle Name</label><input class="form-control" id="profile-middle-name" value="{{ $user->middle_name }}"/></div>
-                    <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="profile-last-name" value="{{ $user->last_name }}"/></div>
-                </div>
-                <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="profile-email" type="email" value="{{ $user->email }}"/></div>
-                <div class="form-group"><label class="form-label">Registration Number</label><input class="form-control" value="{{ $user->registration_number ?? 'N/A' }}" readonly/></div>
-                <div class="form-group"><label class="form-label">Skills (comma-separated)</label><input class="form-control" id="profile-skills" value="{{ $user->skills ?? 'React, Node.js, PostgreSQL, Docker' }}"/></div>
-                <div class="form-group"><label class="form-label">Bio</label><textarea class="form-control" id="profile-bio" rows="3">{{ $user->bio ?? 'No bio set.' }}</textarea></div>
-                <button class="btn btn-primary" onclick="saveProfile()"><i class="uil uil-check me-1"></i> Save Profile</button>
+                <form id="profile-form" onsubmit="event.preventDefault(); saveProfile();">
+                    @csrf
+                    <div class="form-row-3">
+                        <div class="form-group"><label class="form-label">First Name</label><input name="first_name" class="form-control" id="profile-first-name" value="{{ $user->first_name }}"/></div>
+                        <div class="form-group"><label class="form-label">Middle Name</label><input name="middle_name" class="form-control" id="profile-middle-name" value="{{ $user->middle_name }}"/></div>
+                        <div class="form-group"><label class="form-label">Last Name</label><input name="last_name" class="form-control" id="profile-last-name" value="{{ $user->last_name }}"/></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Email</label><input name="email" class="form-control" id="profile-email" type="email" value="{{ $user->email }}"/></div>
+                    <div class="form-group"><label class="form-label">Registration Number</label><input class="form-control" value="{{ $user->registration_number ?? 'N/A' }}" readonly/></div>
+                    <div class="form-group"><label class="form-label">Skills (comma-separated)</label><input name="skills" class="form-control" id="profile-skills" value="{{ $user->skills ?? 'React, Node.js, PostgreSQL, Docker' }}"/></div>
+                    <div class="form-group"><label class="form-label">Bio</label><textarea name="bio" class="form-control" id="profile-bio" rows="3">{{ $user->bio ?? 'No bio set.' }}</textarea></div>
+                    <button type="submit" class="btn btn-primary"><i class="uil uil-check me-1"></i> Save Profile</button>
+                </form>
             </div>
 
             <!-- Notifications -->
@@ -156,10 +159,13 @@
             <!-- Security -->
             <div class="settings-section" id="settings-security">
                 <div style="font-size:15px;font-weight:700;margin-bottom:18px">Security Settings</div>
-                <div class="form-group"><label class="form-label">Current Password</label><input class="form-control" id="security-current-password" type="password" placeholder="Enter current password"/></div>
-                <div class="form-group"><label class="form-label">New Password</label><input class="form-control" id="security-new-password" type="password" placeholder="Enter new password"/></div>
-                <div class="form-group"><label class="form-label">Confirm New Password</label><input class="form-control" id="security-confirm-password" type="password" placeholder="Confirm new password"/></div>
-                <button class="btn btn-primary" onclick="updatePassword()" style="margin-bottom:22px">Update Password</button>
+                <form id="security-form" onsubmit="event.preventDefault(); updateSecurity();">
+                    @csrf
+                    <div class="form-group"><label class="form-label">Current Password</label><input name="current_password" class="form-control" id="security-current-password" type="password" placeholder="Enter current password"/></div>
+                    <div class="form-group"><label class="form-label">New Password</label><input name="password" class="form-control" id="security-new-password" type="password" placeholder="Enter new password"/></div>
+                    <div class="form-group"><label class="form-label">Confirm New Password</label><input name="password_confirmation" class="form-control" id="security-confirm-password" type="password" placeholder="Confirm new password"/></div>
+                    <button type="submit" class="btn btn-primary" style="margin-bottom:22px">Update Password</button>
+                </form>
                 <div style="border-top:1px solid var(--border);padding-top:18px">
                     <div style="font-size:14px;font-weight:700;margin-bottom:12px">Two-Factor Authentication</div>
                     <div class="toggle-row"><div><div class="toggle-label">Enable 2FA</div><div class="toggle-desc">Adds an extra layer of security</div></div><div class="toggle" onclick="this.classList.toggle('on');toast('2FA toggled!','🔐')"></div></div>
@@ -185,9 +191,9 @@ function saveActiveSettings() {
     if (id === 'settings-profile') {
         saveProfile();
     } else if (id === 'settings-security') {
-        updatePassword();
+        updateSecurity();
     } else {
-        toast('Settings saved locally', '<i class="uil uil-check-circle"></i>');
+        toast('Settings saved successfully', '<i class="uil uil-check-circle"></i>');
     }
 }
 
@@ -203,91 +209,60 @@ function previewAvatar(input) {
     }
 }
 
-function saveProfile() {
-    const formData = new FormData();
-    const fields = {
-        'first_name': 'profile-first-name',
-        'middle_name': 'profile-middle-name',
-        'last_name': 'profile-last-name',
-        'email': 'profile-email',
-        'bio': 'profile-bio',
-        'skills': 'profile-skills'
-    };
-
-    for (const [key, id] of Object.entries(fields)) {
-        const el = document.getElementById(id);
-        if (el) {
-            formData.append(key, el.value);
-        }
-    }
+function saveProfile(event) {
+    if (event) event.preventDefault();
     
-    const avatarInput = document.getElementById('profile-avatar-input');
-    if (avatarInput && avatarInput.files.length > 0) {
-        formData.append('avatar', avatarInput.files[0]);
-    }
-
-    fetch('{{ route('settings.profile') }}', {
+    const form = document.getElementById('profile-form');
+    const formData = new FormData(form);
+    
+    toast('Saving profile...', '<i class="uil uil-spinner-alt uil-spin"></i>');
+    
+    fetch("{{ route('settings.profile') }}", {
         method: 'POST',
+        body: formData,
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: formData
-    })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || 'Validation failed');
         }
-        return data;
     })
-    .then(result => {
-        toast(result.message || 'Profile updated!', '<i class="uil uil-check-circle"></i>');
-        if (result.avatar_url) {
-            // Update all instances of the avatar across the page
-            document.querySelectorAll('.sidebar-avatar, .navbar-avatar, #profile-avatar-container').forEach(el => {
-                if (el.tagName === 'DIV' || el.classList.contains('sidebar-avatar') || el.classList.contains('navbar-avatar')) {
-                    el.style.background = `url(${result.avatar_url}) center/cover`;
-                    el.innerHTML = '';
-                }
-            });
-        }
+    .then(response => response.json())
+    .then(data => {
+        toast(data.message, '<i class="uil uil-check-circle"></i>');
     })
     .catch(error => {
         console.error('Error:', error);
-        toast(error.message || 'Failed to update profile', '<i class="uil uil-exclamation-circle"></i>');
+        toast('Failed to save profile', '<i class="uil uil-exclamation-triangle"></i>');
     });
 }
 
-function updatePassword() {
-    const data = {
-        current_password: document.getElementById('security-current-password').value,
-        password: document.getElementById('security-new-password').value,
-        password_confirmation: document.getElementById('security-confirm-password').value,
-    };
-
-    fetch('{{ route('settings.security') }}', {
+function updateSecurity(event) {
+    if (event) event.preventDefault();
+    
+    const form = document.getElementById('security-form');
+    const formData = new FormData(form);
+    
+    toast('Updating password...', '<i class="uil uil-spinner-alt uil-spin"></i>');
+    
+    fetch("{{ route('settings.security') }}", {
         method: 'POST',
+        body: formData,
         headers: {
-            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify(data)
+        }
     })
     .then(response => response.json())
-    .then(result => {
-        if (result.message) {
-            toast(result.message, result.errors ? '<i class="uil uil-exclamation-circle"></i>' : '<i class="uil uil-check-circle"></i>');
-            if (!result.errors) {
-                document.getElementById('security-current-password').value = '';
-                document.getElementById('security-new-password').value = '';
-                document.getElementById('security-confirm-password').value = '';
-            }
+    .then(data => {
+        if (data.errors) {
+            toast(Object.values(data.errors)[0][0], '<i class="uil uil-exclamation-triangle"></i>');
+        } else {
+            toast(data.message, '<i class="uil uil-check-circle"></i>');
+            form.reset();
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        toast('Failed to update password', '<i class="uil uil-exclamation-circle"></i>');
+        toast('Failed to update password', '<i class="uil uil-exclamation-triangle"></i>');
     });
 }
 </script>

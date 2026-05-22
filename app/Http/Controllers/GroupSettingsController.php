@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-use App\Notifications\GroupFormedNotification;
-
 class GroupSettingsController extends Controller
 {
     public function index()

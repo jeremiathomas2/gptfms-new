@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             guests: '/login',
             users: '/'
         );
+        $middleware->append(\App\Http\Middleware\UpdateUserLastSeen::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
