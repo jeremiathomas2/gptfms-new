@@ -12,6 +12,10 @@
     </div>
 
     @if(!$group)
+        @php
+            $survey = auth()->user()->studentSkillsSurvey;
+            $hasCompletedSurvey = $survey && $survey->completed_at;
+        @endphp
         <div class="card" style="text-align: center; padding: 60px 20px;">
             <div style="font-size: 48px; color: var(--text-muted); margin-bottom: 20px;">
                 <i class="uil uil-users-alt"></i>
@@ -20,9 +24,15 @@
             <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto 25px;">
                 You haven't been assigned to any project group yet. Groups will be formed automatically once the formation period ends.
             </p>
-            <a href="{{ route('survey.index') }}" class="btn btn-primary">
-                <i class="uil uil-clipboard-notes me-1"></i> Complete Skills Survey
-            </a>
+            @if(!$hasCompletedSurvey)
+                <a href="{{ route('survey.index') }}" class="btn btn-primary">
+                    <i class="uil uil-clipboard-notes me-1"></i> Complete Skills Survey
+                </a>
+            @else
+                <div style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.18);color:#065F46;font-weight:700;font-size:13px;">
+                    <i class="uil uil-check-circle"></i> Skills Survey Submitted
+                </div>
+            @endif
         </div>
     @else
         <div class="grid-3">

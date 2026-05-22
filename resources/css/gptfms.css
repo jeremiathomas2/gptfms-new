@@ -23,6 +23,7 @@
 
   /* Body / Cards */
   --bg: #F1F5F9;
+  --bg-alt: #E8EEF6;
   --card-bg: #ffffff;
   --text: #111827;
   --text-muted: #6B7280;
@@ -38,6 +39,7 @@
 
 [data-theme="dark"] {
   --bg: #0F172A;
+  --bg-alt: #111C2F;
   --card-bg: #1E293B;
   --text: #F1F5F9;
   --text-muted: #94A3B8;

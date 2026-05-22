@@ -124,7 +124,7 @@
 
         <!-- Right Column: Status -->
         <div style="display: grid; gap: 28px;">
-            <div class="card" style="padding: 28px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid var(--border); background: #fff;">
+            <div class="card" style="padding: 28px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid var(--border); background: var(--card-bg);">
                 <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border);">
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.08); display: flex; align-items: center; justify-content: center; color: var(--success);">
                         <i class="uil uil-hourglass" style="font-size: 22px;"></i>
@@ -135,7 +135,7 @@
                     </div>
                 </div>
                 
-                <div style="text-align: center; padding: 45px 0; background: linear-gradient(to bottom, var(--bg-alt), #fff); border-radius: 20px; border: 1px solid var(--border); margin-bottom: 28px; position: relative; overflow: hidden;">
+                <div style="text-align: center; padding: 45px 0; background: linear-gradient(to bottom, var(--bg-alt), var(--card-bg)); border-radius: 20px; border: 1px solid var(--border); margin-bottom: 28px; position: relative; overflow: hidden;">
                     <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(37,99,235,0.03); border-radius: 50%;"></div>
                     
                     <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; font-weight: 800; margin-bottom: 18px;">Time Remaining</div>
@@ -170,14 +170,14 @@
                 </div>
             </div>
 
-            <div style="padding: 24px; background: #FFFBEB; border-radius: 18px; border: 1px solid #FEF3C7; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.05);">
+            <div style="padding: 24px; background: rgba(245, 158, 11, 0.08); border-radius: 18px; border: 1px solid rgba(245, 158, 11, 0.22); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);">
                 <div style="display: flex; gap: 16px;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #FEF3C7; display: flex; align-items: center; justify-content: center; color: #D97706; flex-shrink: 0;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(245, 158, 11, 0.18); display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0;">
                         <i class="uil uil-info-circle" style="font-size: 20px;"></i>
                     </div>
                     <div>
-                        <h4 style="font-size: 14px; font-weight: 700; color: #92400E; margin: 0 0 6px 0;">Algorithm Notice</h4>
-                        <p style="font-size: 12.5px; color: #B45309; margin: 0; line-height: 1.6; opacity: 0.9;">
+                        <h4 style="font-size: 14px; font-weight: 800; color: var(--text); margin: 0 0 6px 0;">Algorithm Notice</h4>
+                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.6; opacity: 0.95;">
                             Auto-formation will analyze unassigned students and balance them across teams using your defined criteria.
                         </p>
                     </div>
