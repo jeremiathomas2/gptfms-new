@@ -33,6 +33,17 @@
     .alert{margin-bottom:14px;padding:12px 14px;border-radius:14px;font-size:13px;line-height:1.4;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.18)}
     .alert.error{border-color:rgba(255,80,120,.35);background:rgba(255,80,120,.12)}
     .alert.success{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.12)}
+    .progress-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:60;padding:18px}
+    .progress-overlay.open{display:flex}
+    .progress-card{width:100%;max-width:520px;background:rgba(20,30,55,.92);border:1px solid rgba(255,255,255,.18);border-radius:18px;box-shadow:0 30px 60px rgba(0,0,0,.4);overflow:hidden}
+    .progress-head{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:10px}
+    .progress-title{font-weight:900;font-size:14px}
+    .progress-body{padding:16px}
+    .progress-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .progress-text{font-size:12.5px;color:rgba(240,243,255,.85)}
+    .progress-percent{font-size:12.5px;font-weight:900;color:#9bb7ff}
+    .progress-bar{height:10px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+    .progress-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(135deg,#5b8cff,#8b5cf6);transition:width .18s ease}
   </style>
 </head>
 <body>
@@ -55,13 +66,13 @@
         <div class="alert error">{{ $errors->first() }}</div>
       @endif
 
-      <form method="POST" action="{{ route('password.otp.send') }}">
+      <form method="POST" action="{{ route('password.otp.send') }}" id="otpRequestForm">
         @csrf
         <div class="input-group">
-          <input type="email" name="email" class="input-field" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
+          <input type="email" name="email" id="email" class="input-field" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
           <i class="uil uil-envelope input-icon"></i>
         </div>
-        <button type="submit" class="btn">
+        <button type="submit" class="btn" id="sendOtpBtn">
           <i class="uil uil-message"></i> Send OTP
         </button>
       </form>
@@ -71,6 +82,118 @@
       </div>
     </div>
   </div>
+
+  <div class="progress-overlay" id="progressOverlay" aria-hidden="true">
+    <div class="progress-card">
+      <div class="progress-head">
+        <i class="uil uil-envelope-send" style="font-size:18px;color:#9bb7ff"></i>
+        <div class="progress-title">Sending OTP…</div>
+      </div>
+      <div class="progress-body">
+        <div class="progress-meta">
+          <div class="progress-text" id="progressText">Contacting mail server</div>
+          <div class="progress-percent" id="progressPercent">0%</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById('otpRequestForm');
+      const btn = document.getElementById('sendOtpBtn');
+      const overlay = document.getElementById('progressOverlay');
+      const fill = document.getElementById('progressFill');
+      const percentEl = document.getElementById('progressPercent');
+      const textEl = document.getElementById('progressText');
+
+      function openProgress() {
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+      function setProgress(p, label) {
+        const clamped = Math.max(0, Math.min(100, p));
+        fill.style.width = clamped + '%';
+        percentEl.textContent = clamped + '%';
+        if (label) textEl.textContent = label;
+      }
+
+      function errorMessage(err, fallback) {
+        if (!err) return fallback;
+        if (typeof err === 'string') return err;
+        if (err.message) return err.message;
+        if (err.errors) {
+          const firstKey = Object.keys(err.errors)[0];
+          if (firstKey && err.errors[firstKey] && err.errors[firstKey][0]) return err.errors[firstKey][0];
+        }
+        return fallback;
+      }
+
+      if (!form) return;
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('email')?.value?.trim();
+        if (!email) return;
+
+        btn.disabled = true;
+        openProgress();
+        setProgress(0, 'Contacting mail server');
+
+        let progress = 0;
+        const steps = [
+          { at: 15, label: 'Validating email' },
+          { at: 35, label: 'Generating OTP' },
+          { at: 60, label: 'Sending email' },
+          { at: 85, label: 'Finalizing' },
+        ];
+        let stepIndex = 0;
+
+        const interval = setInterval(() => {
+          progress = Math.min(92, progress + 3);
+          if (stepIndex < steps.length && progress >= steps[stepIndex].at) {
+            setProgress(progress, steps[stepIndex].label);
+            stepIndex++;
+          } else {
+            setProgress(progress);
+          }
+        }, 120);
+
+        fetch("{{ route('password.otp.send') }}", {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ email })
+        })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw data;
+          clearInterval(interval);
+          setProgress(100, 'OTP sent');
+          setTimeout(() => {
+            const url = new URL("{{ route('password.reset') }}", window.location.origin);
+            url.searchParams.set('email', email);
+            window.location.href = url.toString();
+          }, 450);
+        })
+        .catch((err) => {
+          clearInterval(interval);
+          setProgress(100, errorMessage(err, 'Failed to send OTP'));
+          btn.disabled = false;
+          setTimeout(() => {
+            overlay.classList.remove('open');
+            overlay.setAttribute('aria-hidden', 'true');
+            setProgress(0, 'Contacting mail server');
+          }, 900);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
-
