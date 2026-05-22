@@ -29,7 +29,7 @@
                     <i class="uil uil-clipboard-notes me-1"></i> Complete Skills Survey
                 </a>
             @else
-                <div style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.18);color:#065F46;font-weight:700;font-size:13px;">
+                <div style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.22);color:var(--text);font-weight:700;font-size:13px;">
                     <i class="uil uil-check-circle"></i> Skills Survey Submitted
                 </div>
             @endif
@@ -53,6 +53,9 @@
                     <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Team Members</div>
                     <div style="display: grid; gap: 12px;">
                         @foreach($group->members as $member)
+                            @if(!$member->user)
+                                @continue
+                            @endif
                             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-alt); border-radius: 12px; border: 1px solid var(--border);">
                                 <div class="sidebar-avatar" style="width: 40px; height: 40px; background: {{ $member->user->avatar ? 'url('.asset($member->user->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
                                     {{ $member->user->avatar ? '' : $member->user->initials }}

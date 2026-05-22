@@ -4,9 +4,16 @@
 
 @section('content')
 @php
-    $user = auth()->user() ?? \App\Models\User::first();
+    $user = auth()->user();
 @endphp
 <div class="page active" id="page-settings">
+    @if(!$user)
+        <div class="card" style="padding:18px">
+            <div style="font-weight:800;margin-bottom:6px">Session expired</div>
+            <div style="color:var(--text-muted);margin-bottom:12px">Please sign in again to access settings.</div>
+            <a class="btn btn-primary btn-sm" href="{{ route('login') }}"><i class="uil uil-sign-in-alt me-1"></i> Login</a>
+        </div>
+    @else
     <div class="section-header">
         <div><div class="section-title">Settings</div><div class="section-sub">Customize your GPTFMS experience</div></div>
         <button class="btn btn-primary btn-sm" onclick="saveActiveSettings()"><i class="uil uil-save me-1"></i> Save Changes</button>
@@ -179,6 +186,7 @@
         </div>
     </div>
 </div>
+    @endif
 @endsection
 
 @push('scripts')
@@ -214,6 +222,10 @@ function saveProfile(event) {
     
     const form = document.getElementById('profile-form');
     const formData = new FormData(form);
+    const avatarInput = document.getElementById('profile-avatar-input');
+    if (avatarInput && avatarInput.files && avatarInput.files[0]) {
+        formData.append('avatar', avatarInput.files[0]);
+    }
     
     toast('Saving profile...', '<i class="uil uil-spinner-alt uil-spin"></i>');
     
@@ -228,6 +240,9 @@ function saveProfile(event) {
     .then(response => response.json())
     .then(data => {
         toast(data.message, '<i class="uil uil-check-circle"></i>');
+        if (data && data.avatar_url && window.updateUserAvatar) {
+            window.updateUserAvatar(data.avatar_url, data.user ? data.user.initials : null);
+        }
     })
     .catch(error => {
         console.error('Error:', error);

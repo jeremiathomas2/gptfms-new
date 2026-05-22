@@ -132,6 +132,7 @@
 <script>
     let activeChat = null;
     let refreshInterval = null;
+    let chatListInterval = null;
     let allChatData = null;
     let currentFilter = 'groups';
     let searchTimeout = null;
@@ -145,6 +146,8 @@
         const autoId = urlParams.get('id');
         
         loadChats(autoType, autoId);
+        if (chatListInterval) clearInterval(chatListInterval);
+        chatListInterval = setInterval(() => loadChats(), 5000);
 
         const searchInput = document.getElementById('chat-search-input');
         if (searchInput) {

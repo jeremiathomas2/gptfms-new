@@ -181,6 +181,99 @@ document.addEventListener('DOMContentLoaded', () => {
   if (markAllBtn) {
     markAllBtn.addEventListener('click', markAllAsRead);
   }
+
+  const logoutForm = document.getElementById('logout-form');
+  if (logoutForm) {
+    const idleMs = 5 * 60 * 1000;
+    const warnMs = 60 * 1000;
+    const storageKey = 'gptfms-last-activity';
+    let lastActivity = Date.now();
+    let isLoggingOut = false;
+    let lastWrite = 0;
+    const warningBar = document.getElementById('idle-warning');
+    const warningCountdown = document.getElementById('idle-warning-countdown');
+    const warningStayBtn = document.getElementById('idle-warning-stay');
+
+    const writeActivity = () => {
+      const now = Date.now();
+      lastActivity = now;
+      if (warningBar) {
+        warningBar.style.display = 'none';
+        warningBar.setAttribute('aria-hidden', 'true');
+      }
+      if (now - lastWrite > 1000) {
+        lastWrite = now;
+        try { localStorage.setItem(storageKey, String(now)); } catch (_) {}
+      }
+    };
+
+    const doLogout = () => {
+      if (isLoggingOut) return;
+      isLoggingOut = true;
+      try { logoutForm.submit(); } catch (_) { window.location.href = '/login'; }
+    };
+
+    const formatMmSs = (ms) => {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    };
+
+    const checkIdle = () => {
+      if (isLoggingOut) return;
+      let ts = lastActivity;
+      try {
+        const fromStorage = parseInt(localStorage.getItem(storageKey) || '', 10);
+        if (!Number.isNaN(fromStorage)) ts = Math.max(ts, fromStorage);
+      } catch (_) {}
+      const elapsed = Date.now() - ts;
+      const remaining = idleMs - elapsed;
+
+      if (remaining <= 0) {
+        doLogout();
+        return;
+      }
+
+      if (warningBar) {
+        if (remaining <= warnMs) {
+          if (warningCountdown) warningCountdown.textContent = formatMmSs(remaining);
+          if (warningBar.style.display !== 'block') {
+            warningBar.style.display = 'block';
+            warningBar.setAttribute('aria-hidden', 'false');
+          }
+        } else {
+          if (warningBar.style.display !== 'none') {
+            warningBar.style.display = 'none';
+            warningBar.setAttribute('aria-hidden', 'true');
+          }
+        }
+      }
+    };
+
+    ['mousemove','mousedown','keydown','scroll','touchstart','pointerdown'].forEach(evt => {
+      window.addEventListener(evt, writeActivity, { passive: true });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) writeActivity();
+    });
+    window.addEventListener('storage', (e) => {
+      if (e.key === storageKey && e.newValue) {
+        const v = parseInt(e.newValue, 10);
+        if (!Number.isNaN(v)) lastActivity = Math.max(lastActivity, v);
+      }
+    });
+
+    if (warningStayBtn) {
+      warningStayBtn.addEventListener('click', () => {
+        writeActivity();
+        toast('Session continued', '<i class="uil uil-check-circle"></i>');
+      });
+    }
+
+    writeActivity();
+    setInterval(checkIdle, 1000);
+  }
 });
 
 // ═══════════ TOAST ═══════════
@@ -241,6 +334,26 @@ document.addEventListener('click', e => {
     closeAllDropdowns();
   }
 });
+
+window.updateUserAvatar = function(avatarUrl, initials) {
+  const cacheBustedUrl = avatarUrl ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}v=${Date.now()}` : null;
+  const targets = [
+    document.getElementById('navbar-user-avatar'),
+    document.getElementById('sidebar-footer-avatar'),
+    document.getElementById('dropdown-user-avatar'),
+    document.getElementById('profile-avatar-container'),
+  ].filter(Boolean);
+
+  targets.forEach(el => {
+    if (cacheBustedUrl) {
+      el.style.background = `url(${cacheBustedUrl}) center/cover`;
+      el.innerHTML = '';
+    } else {
+      el.style.background = 'var(--primary)';
+      el.textContent = (initials || '').toString().slice(0, 2).toUpperCase();
+    }
+  });
+}
 
 // ═══════════ SETTINGS ═══════════
 window.switchSettings = function(section, el) {

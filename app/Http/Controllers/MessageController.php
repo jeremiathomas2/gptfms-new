@@ -11,6 +11,19 @@ use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
+    private function getPrivateChatPartnerIds(int $userId)
+    {
+        return Message::query()
+            ->whereNull('group_id')
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)->orWhere('receiver_id', $userId);
+            })
+            ->selectRaw('CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS partner_id', [$userId])
+            ->pluck('partner_id')
+            ->unique()
+            ->values();
+    }
+
     public function index()
     {
         return view('messages.index');
@@ -40,6 +53,11 @@ class MessageController extends Controller
                     $users->push($group->supervisor);
                 }
             }
+
+            $privatePartnerIds = $this->getPrivateChatPartnerIds($user->id)->reject(fn ($id) => (int) $id === (int) $user->id);
+            if ($privatePartnerIds->isNotEmpty()) {
+                $users = $users->concat(User::whereIn('id', $privatePartnerIds)->get());
+            }
         } elseif ($user->hasRole('supervisor')) {
             // Supervisor: All supervised groups
             $groups = $user->supervisedGroups()->with('members.user')->get();
@@ -53,6 +71,11 @@ class MessageController extends Controller
                         $users->push($student);
                     }
                 }
+            }
+
+            $privatePartnerIds = $this->getPrivateChatPartnerIds($user->id)->reject(fn ($id) => (int) $id === (int) $user->id);
+            if ($privatePartnerIds->isNotEmpty()) {
+                $users = $users->concat(User::whereIn('id', $privatePartnerIds)->get());
             }
         } elseif ($user->hasRole('admin')) {
             // Admin: Separate lists for Students, Supervisors, and Groups
@@ -72,19 +95,10 @@ class MessageController extends Controller
             $supervisedGroups = $user->supervisedGroups()->get();
             $groups = $memberGroups->concat($supervisedGroups)->unique('id')->filter();
             
-            $privateChats = Message::where('sender_id', $user->id)
-                ->whereNull('group_id')
-                ->select('receiver_id as user_id')
-                ->union(
-                    Message::where('receiver_id', $user->id)
-                    ->whereNull('group_id')
-                    ->select('sender_id as user_id')
-                )
-                ->get()
-                ->pluck('user_id')
-                ->unique();
-                
-            $users = User::whereIn('id', $privateChats)->get();
+            $privatePartnerIds = $this->getPrivateChatPartnerIds($user->id)->reject(fn ($id) => (int) $id === (int) $user->id);
+            $users = $privatePartnerIds->isNotEmpty()
+                ? User::whereIn('id', $privatePartnerIds)->get()
+                : collect();
         }
 
         return response()->json([
@@ -171,7 +185,16 @@ class MessageController extends Controller
             
             $messageData['group_id'] = $validated['target_id'];
         } else {
-            $messageData['receiver_id'] = $validated['target_id'];
+            if ((int) $validated['target_id'] === (int) $user->id) {
+                return response()->json(['error' => 'Invalid recipient'], 422);
+            }
+
+            $receiver = User::find($validated['target_id']);
+            if (!$receiver) {
+                return response()->json(['error' => 'Recipient not found'], 404);
+            }
+
+            $messageData['receiver_id'] = $receiver->id;
         }
 
         $message = Message::create($messageData);

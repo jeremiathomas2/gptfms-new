@@ -83,7 +83,7 @@
     @auth
     <div class="dropdown-header" style="padding: 15px; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="sidebar-avatar" style="width: 40px; height: 40px; background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
+            <div id="dropdown-user-avatar" class="sidebar-avatar" style="width: 40px; height: 40px; background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
                 {{ auth()->user()->avatar ? '' : auth()->user()->initials }}
             </div>
             <div>
@@ -285,7 +285,7 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
         <div class="sidebar-footer">
             @auth
             <div class="sidebar-user" onclick="toggleDropdown('user-dropdown')">
-                <div class="sidebar-avatar" style="background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
+                <div id="sidebar-footer-avatar" class="sidebar-avatar" style="background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
                     {{ auth()->user()->avatar ? '' : auth()->user()->initials }}
                 </div>
                 <div class="sidebar-user-info">
@@ -326,7 +326,7 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
                 </div>
                 <a href="{{ route('settings') }}" class="navbar-btn"><i class="uil uil-setting"></i></a>
                 @auth
-                <div class="navbar-avatar" onclick="toggleDropdown('user-dropdown')" style="background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
+                <div id="navbar-user-avatar" class="navbar-avatar" onclick="toggleDropdown('user-dropdown')" style="background: {{ auth()->user()->avatar ? 'url('.asset(auth()->user()->avatar).') center/cover' : 'var(--primary)' }}; display: flex; align-items: center; justify-content: center; color: #fff;">
                     {{ auth()->user()->avatar ? '' : auth()->user()->initials }}
                 </div>
                 @else
@@ -334,6 +334,21 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
                 @endauth
             </div>
         </nav>
+
+        <div id="idle-warning" class="idle-warning" style="display:none" aria-hidden="true">
+            <div class="idle-warning-inner">
+                <div class="idle-warning-left">
+                    <i class="uil uil-clock-three"></i>
+                    <div>
+                        <div class="idle-warning-title">You will be signed out soon</div>
+                        <div class="idle-warning-sub">No activity detected. Auto logout in <span id="idle-warning-countdown">01:00</span>.</div>
+                    </div>
+                </div>
+                <div class="idle-warning-actions">
+                    <button type="button" class="btn btn-primary btn-sm" id="idle-warning-stay">Stay signed in</button>
+                </div>
+            </div>
+        </div>
 
         <!-- CONTENT -->
         <div id="content">
