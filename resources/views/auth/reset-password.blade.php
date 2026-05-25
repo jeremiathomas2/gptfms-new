@@ -52,6 +52,10 @@
     <div class="blob blob-3"></div>
   </div>
 
+  @php
+    $passwordResetEnabled = \App\Models\SystemSetting::getBool('auth.password_reset_enabled', true);
+  @endphp
+
   <div class="glass-card">
     <div class="card-content">
       <div class="title">Reset Password</div>
@@ -63,24 +67,28 @@
 
       <div id="reset-alert" class="alert" style="display:none"></div>
 
-      <div class="grid">
-        <div class="input-group">
-          <input type="email" id="email" class="input-field" placeholder="Email Address" value="{{ $email ?? '' }}" autocomplete="email" required>
-          <i class="uil uil-envelope input-icon"></i>
+      @if($passwordResetEnabled)
+        <div class="grid">
+          <div class="input-group">
+            <input type="email" id="email" class="input-field" placeholder="Email Address" value="{{ $email ?? '' }}" autocomplete="email" required>
+            <i class="uil uil-envelope input-icon"></i>
+          </div>
+          <div class="input-group">
+            <input type="text" id="otp" class="input-field" placeholder="Enter OTP (6 digits)" inputmode="numeric" maxlength="6" required>
+            <i class="uil uil-key-skeleton input-icon"></i>
+          </div>
+          <div class="row">
+            <button type="button" class="btn btn-outline" id="resendBtn" onclick="resendOtp()">
+              <i class="uil uil-redo"></i> Resend OTP
+            </button>
+            <button type="button" class="btn" id="verifyBtn" onclick="verifyOtp()">
+              <i class="uil uil-shield-check"></i> Verify OTP
+            </button>
+          </div>
         </div>
-        <div class="input-group">
-          <input type="text" id="otp" class="input-field" placeholder="Enter OTP (6 digits)" inputmode="numeric" maxlength="6" required>
-          <i class="uil uil-key-skeleton input-icon"></i>
-        </div>
-        <div class="row">
-          <button type="button" class="btn btn-outline" id="resendBtn" onclick="resendOtp()">
-            <i class="uil uil-redo"></i> Resend OTP
-          </button>
-          <button type="button" class="btn" id="verifyBtn" onclick="verifyOtp()">
-            <i class="uil uil-shield-check"></i> Verify OTP
-          </button>
-        </div>
-      </div>
+      @else
+        <div class="alert error" style="display:block">Password reset is temporarily disabled by the administrator.</div>
+      @endif
 
       <div class="link-row">
         Back to <a href="{{ route('login') }}">Login</a>
@@ -88,33 +96,36 @@
     </div>
   </div>
 
-  <div class="modal" id="passwordModal">
-    <div class="modal-card">
-      <div class="modal-head">
-        <div class="modal-title">Set New Password</div>
-        <div class="modal-close" onclick="closeModal()"><i class="uil uil-multiply"></i></div>
-      </div>
-      <div class="modal-body">
-        <div id="modal-alert" class="alert" style="display:none"></div>
-        <div class="grid">
-          <div class="input-group">
-            <input type="password" id="new_password" class="input-field" placeholder="New Password" autocomplete="new-password">
-            <i class="uil uil-lock input-icon"></i>
+  @if($passwordResetEnabled)
+    <div class="modal" id="passwordModal">
+      <div class="modal-card">
+        <div class="modal-head">
+          <div class="modal-title">Set New Password</div>
+          <div class="modal-close" onclick="closeModal()"><i class="uil uil-multiply"></i></div>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert" style="display:none"></div>
+          <div class="grid">
+            <div class="input-group">
+              <input type="password" id="new_password" class="input-field" placeholder="New Password" autocomplete="new-password">
+              <i class="uil uil-lock input-icon"></i>
+            </div>
+            <div class="input-group">
+              <input type="password" id="new_password_confirmation" class="input-field" placeholder="Confirm Password" autocomplete="new-password">
+              <i class="uil uil-lock-access input-icon"></i>
+            </div>
+            <button type="button" class="btn" id="resetBtn" onclick="resetPassword()">
+              <i class="uil uil-check"></i> Change Password
+            </button>
           </div>
-          <div class="input-group">
-            <input type="password" id="new_password_confirmation" class="input-field" placeholder="Confirm Password" autocomplete="new-password">
-            <i class="uil uil-lock-access input-icon"></i>
-          </div>
-          <button type="button" class="btn" id="resetBtn" onclick="resetPassword()">
-            <i class="uil uil-check"></i> Change Password
-          </button>
         </div>
       </div>
     </div>
-  </div>
+  @endif
 
-  <script>
-    let resetToken = null;
+  @if($passwordResetEnabled)
+    <script>
+      let resetToken = null;
 
     function showAlert(el, msg, type) {
       el.style.display = 'block';
@@ -249,6 +260,7 @@
         btn.disabled = false;
       });
     }
-  </script>
+    </script>
+  @endif
 </body>
 </html>

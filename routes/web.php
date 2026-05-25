@@ -39,6 +39,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::get('/tasks/attention-count', [TaskController::class, 'attentionCount'])->name('tasks.attention_count');
 
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/chats', [MessageController::class, 'getChats']);
@@ -49,15 +50,18 @@ Route::middleware(['auth'])->group(function () {
         return view('analytics.index');
     })->name('reports');
 
-    Route::get('/evaluation', function () {
-        return view('student.evaluation');
-    })->name('evaluation');
+    Route::get('/evaluation', [\App\Http\Controllers\PeerEvaluationController::class, 'index'])->name('evaluation');
+    Route::post('/evaluation', [\App\Http\Controllers\PeerEvaluationController::class, 'store'])->name('evaluation.store');
 
     Route::get('/supervisor', function () {
         return view('supervisor.index');
     })->name('supervisor');
 
-    Route::get('/admin', [AdminController::class, 'users'])->name('admin');
+    Route::get('/admin', [AdminController::class, 'control'])->name('admin');
+    Route::post('/admin/control', [AdminController::class, 'updateControl'])->name('admin.control.update');
+    Route::post('/admin/control/email', [AdminController::class, 'sendSystemEmail'])->name('admin.control.email');
+    Route::post('/admin/control/sms', [AdminController::class, 'sendSystemSms'])->name('admin.control.sms');
+    Route::post('/admin/control/cache-clear', [AdminController::class, 'clearSystemCache'])->name('admin.control.cache_clear');
     Route::get('/admin/users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show');
     Route::post('/admin/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::post('/admin/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('admin.users.reset_password');

@@ -7,9 +7,11 @@ use App\Models\Group;
 use App\Models\GroupMember;
 use App\Models\User;
 use App\Models\Project;
+use App\Notifications\GroupFormedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class GroupSettingsController extends Controller

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -16,6 +17,12 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        if (!SystemSetting::getBool('auth.login_enabled', true)) {
+            return back()
+                ->withInput($request->only('email'))
+                ->with('error', 'Login is temporarily disabled by the administrator.');
+        }
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
@@ -33,11 +40,19 @@ class AuthController extends Controller
 
     public function showRegister()
     {
+        if (!SystemSetting::getBool('auth.registration_enabled', true)) {
+            return redirect()->route('login')->with('error', 'Registration is temporarily disabled by the administrator.');
+        }
+
         return view('auth.register');
     }
 
     public function register(Request $request)
     {
+        if (!SystemSetting::getBool('auth.registration_enabled', true)) {
+            return redirect()->route('login')->with('error', 'Registration is temporarily disabled by the administrator.');
+        }
+
         // Validate registration data for GPTFMS system
         $rules = [
             'first_name' => 'required|string|max:255',

@@ -18,6 +18,31 @@ class TaskController extends Controller
         return view('tasks.index', compact('todoTasks', 'inProgressTasks', 'completedTasks'));
     }
 
+    public function attentionCount()
+    {
+        $user = Auth::user();
+
+        $attentionStatuses = ['todo', 'in_progress', 'review'];
+
+        $assignedCount = Task::query()
+            ->where('assigned_to', $user->id)
+            ->whereIn('status', $attentionStatuses)
+            ->count();
+
+        $createdCount = Task::query()
+            ->where('created_by', $user->id)
+            ->whereIn('status', $attentionStatuses)
+            ->count();
+
+        $count = $assignedCount > 0 ? $assignedCount : $createdCount;
+
+        return response()->json([
+            'count' => $count,
+            'assigned' => $assignedCount,
+            'created' => $createdCount,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

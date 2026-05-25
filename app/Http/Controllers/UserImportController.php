@@ -126,6 +126,7 @@ class UserImportController extends Controller
         }
 
         try {
+            $createdUsers = [];
             DB::beginTransaction();
             foreach ($rows as $row) {
                 $email = $row['email'];
@@ -152,13 +153,21 @@ class UserImportController extends Controller
                 ]);
 
                 $user->assignRole($type);
-                
-                // Queued Notification (ShouldQueue handles the background processing)
-                $user->notify(new WelcomeNotification($password, $type));
+                $createdUsers[] = [$user, $password, $type];
 
                 $count++;
             }
             DB::commit();
+
+            $queued = 0;
+            foreach ($createdUsers as [$user, $password, $type]) {
+                try {
+                    $user->notify(new WelcomeNotification($password, $type));
+                    $queued++;
+                } catch (\Throwable $e) {
+                    Log::error("Welcome notification failed for {$user->email}: " . $e->getMessage());
+                }
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Import Exception: " . $e->getMessage());
@@ -171,6 +180,7 @@ class UserImportController extends Controller
         return response()->json([
             'success' => true, 
             'message' => "Successfully imported $count users.",
+            'queued' => $queued ?? 0,
             'errors' => $errors
         ]);
     }

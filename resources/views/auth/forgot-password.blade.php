@@ -53,6 +53,10 @@
     <div class="blob blob-3"></div>
   </div>
 
+  @php
+    $passwordResetEnabled = \App\Models\SystemSetting::getBool('auth.password_reset_enabled', true);
+  @endphp
+
   <div class="glass-card">
     <div class="card-content">
       <div class="title">Forgot Password</div>
@@ -66,16 +70,20 @@
         <div class="alert error">{{ $errors->first() }}</div>
       @endif
 
-      <form method="POST" action="{{ route('password.otp.send') }}" id="otpRequestForm">
-        @csrf
-        <div class="input-group">
-          <input type="email" name="email" id="email" class="input-field" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
-          <i class="uil uil-envelope input-icon"></i>
-        </div>
-        <button type="submit" class="btn" id="sendOtpBtn">
-          <i class="uil uil-message"></i> Send OTP
-        </button>
-      </form>
+      @if($passwordResetEnabled)
+        <form method="POST" action="{{ route('password.otp.send') }}" id="otpRequestForm">
+          @csrf
+          <div class="input-group">
+            <input type="email" name="email" id="email" class="input-field" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
+            <i class="uil uil-envelope input-icon"></i>
+          </div>
+          <button type="submit" class="btn" id="sendOtpBtn">
+            <i class="uil uil-message"></i> Send OTP
+          </button>
+        </form>
+      @else
+        <div class="alert error">Password reset is temporarily disabled by the administrator.</div>
+      @endif
 
       <div class="link-row">
         Back to <a href="{{ route('login') }}">Login</a>
@@ -83,32 +91,35 @@
     </div>
   </div>
 
-  <div class="progress-overlay" id="progressOverlay" aria-hidden="true">
-    <div class="progress-card">
-      <div class="progress-head">
-        <i class="uil uil-envelope-send" style="font-size:18px;color:#9bb7ff"></i>
-        <div class="progress-title">Sending OTP…</div>
-      </div>
-      <div class="progress-body">
-        <div class="progress-meta">
-          <div class="progress-text" id="progressText">Contacting mail server</div>
-          <div class="progress-percent" id="progressPercent">0%</div>
+  @if($passwordResetEnabled)
+    <div class="progress-overlay" id="progressOverlay" aria-hidden="true">
+      <div class="progress-card">
+        <div class="progress-head">
+          <i class="uil uil-envelope-send" style="font-size:18px;color:#9bb7ff"></i>
+          <div class="progress-title">Sending OTP…</div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-body">
+          <div class="progress-meta">
+            <div class="progress-text" id="progressText">Contacting mail server</div>
+            <div class="progress-percent" id="progressPercent">0%</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  @endif
 
-  <script>
-    (function () {
-      const form = document.getElementById('otpRequestForm');
-      const btn = document.getElementById('sendOtpBtn');
-      const overlay = document.getElementById('progressOverlay');
-      const fill = document.getElementById('progressFill');
-      const percentEl = document.getElementById('progressPercent');
-      const textEl = document.getElementById('progressText');
+  @if($passwordResetEnabled)
+    <script>
+      (function () {
+        const form = document.getElementById('otpRequestForm');
+        const btn = document.getElementById('sendOtpBtn');
+        const overlay = document.getElementById('progressOverlay');
+        const fill = document.getElementById('progressFill');
+        const percentEl = document.getElementById('progressPercent');
+        const textEl = document.getElementById('progressText');
 
       function openProgress() {
         overlay.classList.add('open');
@@ -132,11 +143,11 @@
         return fallback;
       }
 
-      if (!form) return;
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        const email = document.getElementById('email')?.value?.trim();
-        if (!email) return;
+        if (!form) return;
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          const email = document.getElementById('email')?.value?.trim();
+          if (!email) return;
 
         btn.disabled = true;
         openProgress();
@@ -192,8 +203,9 @@
             setProgress(0, 'Contacting mail server');
           }, 900);
         });
-      });
-    })();
-  </script>
+        });
+      })();
+    </script>
+  @endif
 </body>
 </html>

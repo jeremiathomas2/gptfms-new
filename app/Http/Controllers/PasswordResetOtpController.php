@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PasswordResetOtp;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\PasswordResetOtpNotification;
 use Illuminate\Http\Request;
@@ -19,6 +20,13 @@ class PasswordResetOtpController extends Controller
 
     public function sendOtp(Request $request)
     {
+        if (!SystemSetting::getBool('auth.password_reset_enabled', true)) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Password reset is temporarily disabled by the administrator.'], 403);
+            }
+            return redirect()->route('login')->with('error', 'Password reset is temporarily disabled by the administrator.');
+        }
+
         $validated = $request->validate([
             'email' => 'required|email',
         ]);
@@ -72,6 +80,10 @@ class PasswordResetOtpController extends Controller
 
     public function verifyOtp(Request $request)
     {
+        if (!SystemSetting::getBool('auth.password_reset_enabled', true)) {
+            return response()->json(['message' => 'Password reset is temporarily disabled by the administrator.'], 403);
+        }
+
         $validated = $request->validate([
             'email' => 'required|email',
             'otp' => 'required|string|min:4|max:10',
@@ -113,6 +125,10 @@ class PasswordResetOtpController extends Controller
 
     public function resetPassword(Request $request)
     {
+        if (!SystemSetting::getBool('auth.password_reset_enabled', true)) {
+            return response()->json(['message' => 'Password reset is temporarily disabled by the administrator.'], 403);
+        }
+
         $validated = $request->validate([
             'email' => 'required|email',
             'reset_token' => 'required|string',

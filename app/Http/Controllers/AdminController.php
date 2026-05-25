@@ -8,7 +8,11 @@ use App\Models\Group;
 use App\Models\GroupMember;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\SystemSetting;
 use App\Notifications\UserCreatedNotification;
+use App\Services\NextSmsService;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
@@ -20,6 +24,106 @@ class AdminController extends Controller
         $taskCount = Task::count();
         
         return view('dashboard', compact('userCount', 'groupCount', 'projectCount', 'taskCount'));
+    }
+
+    public function control()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        SystemSetting::setDefault('auth.login_enabled', true);
+        SystemSetting::setDefault('auth.password_reset_enabled', true);
+        SystemSetting::setDefault('auth.registration_enabled', true);
+
+        $settings = [
+            'login_enabled' => SystemSetting::getBool('auth.login_enabled', true),
+            'password_reset_enabled' => SystemSetting::getBool('auth.password_reset_enabled', true),
+            'registration_enabled' => SystemSetting::getBool('auth.registration_enabled', true),
+        ];
+
+        return view('admin.control', compact('settings'));
+    }
+
+    public function updateControl(Request $request)
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $validated = $request->validate([
+            'login_enabled' => 'required|boolean',
+            'password_reset_enabled' => 'required|boolean',
+            'registration_enabled' => 'required|boolean',
+        ]);
+
+        SystemSetting::set('auth.login_enabled', (bool) $validated['login_enabled']);
+        SystemSetting::set('auth.password_reset_enabled', (bool) $validated['password_reset_enabled']);
+        SystemSetting::set('auth.registration_enabled', (bool) $validated['registration_enabled']);
+
+        return back()->with('status', 'System settings updated successfully.');
+    }
+
+    public function sendSystemEmail(Request $request)
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $validated = $request->validate([
+            'audience' => 'required|in:all,student,supervisor,admin',
+            'subject' => 'required|string|max:160',
+            'message' => 'required|string|max:4000',
+        ]);
+
+        $users = $this->resolveAudienceUsers($validated['audience']);
+        $emails = $users->pluck('email')->filter()->unique()->values();
+
+        $sent = 0;
+        foreach ($emails as $email) {
+            try {
+                Mail::send('emails.system-broadcast', [
+                    'subject' => $validated['subject'],
+                    'body' => $validated['message'],
+                ], function ($m) use ($email, $validated) {
+                    $m->to($email)->subject($validated['subject']);
+                });
+                $sent++;
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return back()->with('status', "Email sent to {$sent} recipient(s).");
+    }
+
+    public function sendSystemSms(Request $request)
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $validated = $request->validate([
+            'audience' => 'required|in:all,student,supervisor,admin',
+            'message' => 'required|string|max:480',
+        ]);
+
+        $users = $this->resolveAudienceUsers($validated['audience']);
+        $phones = $users->pluck('phone')->filter()->unique()->values();
+
+        $service = new NextSmsService();
+        $sent = 0;
+
+        foreach ($phones as $phone) {
+            try {
+                if ($service->sendSms($phone, $validated['message'])) {
+                    $sent++;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return back()->with('status', "SMS sent to {$sent} recipient(s).");
+    }
+
+    public function clearSystemCache()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        Artisan::call('optimize:clear');
+
+        return back()->with('status', 'System cache cleared.');
     }
 
     public function users()
@@ -314,5 +418,16 @@ class AdminController extends Controller
         ]);
 
         return response()->json(['success' => true, 'message' => 'Supervisor assigned successfully']);
+    }
+
+    private function resolveAudienceUsers(string $audience)
+    {
+        $query = User::query()->where('status', 'active');
+
+        if ($audience !== 'all') {
+            $query->role($audience);
+        }
+
+        return $query->get();
     }
 }

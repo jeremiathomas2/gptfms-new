@@ -460,7 +460,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     setTimeout(() => {
         if (window.location.pathname === '/' || window.location.pathname.includes('/dashboard')) {
-            toast('Welcome back! 3 tasks need attention.', '<i class="uil uil-wave-hand"></i>');
+            fetch('/tasks/attention-count', { headers: { 'Accept': 'application/json' } })
+              .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw data;
+                const count = Number(data.count ?? 0);
+                const label = count === 1 ? 'task' : 'tasks';
+                const verb = count === 1 ? 'needs' : 'need';
+                toast(`Welcome back! ${count} ${label} ${verb} attention.`, '<i class="uil uil-wave-hand"></i>');
+              })
+              .catch(() => {
+                toast('Welcome back!', '<i class="uil uil-wave-hand"></i>');
+              });
         }
     }, 800);
 });

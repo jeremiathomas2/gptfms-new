@@ -770,6 +770,11 @@
   </style>
 </head>
 <body>
+  @php
+    $loginEnabled = \App\Models\SystemSetting::getBool('auth.login_enabled', true);
+    $passwordResetEnabled = \App\Models\SystemSetting::getBool('auth.password_reset_enabled', true);
+    $registrationEnabled = \App\Models\SystemSetting::getBool('auth.registration_enabled', true);
+  @endphp
 
   <!-- Liquid animated background blobs -->
   <div class="blob-container">
@@ -795,10 +800,12 @@
 
       <!-- Register Button on Right -->
       <div class="header-right">
-        <a href="{{ route('register') }}" class="register-btn">
-          <i class="uil uil-user-plus me-2"></i>
-          <span>Register</span>
-        </a>
+        @if($registrationEnabled)
+          <a href="{{ route('register') }}" class="register-btn">
+            <i class="uil uil-user-plus me-2"></i>
+            <span>Register</span>
+          </a>
+        @endif
       </div>
     </div>
   </header>
@@ -815,69 +822,79 @@
         <p class="login-subtitle">Sign in to your GPTFMS account</p>
       </div>
 
-      <!-- login form -->
-      <form class="login-form" action="{{ route('login') }}" method="POST" id="loginForm">
-        @csrf
-        <input type="hidden" name="form_type" value="login">
-        
-        @if ($errors->any())
-            <div class="error-message" style="background: rgba(255, 100, 100, 0.1); border: 1px solid rgba(255, 100, 100, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 20px; color: #ff6464; font-size: 13px;">
-                <ul style="list-style: none;">
-                    @foreach ($errors->all() as $error)
-                        <li><i class="uil uil-exclamation-circle me-1"></i> {{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
+      @if($loginEnabled)
+        <form class="login-form" action="{{ route('login') }}" method="POST" id="loginForm">
+          @csrf
+          <input type="hidden" name="form_type" value="login">
+          
+          @if ($errors->any())
+              <div class="error-message" style="background: rgba(255, 100, 100, 0.1); border: 1px solid rgba(255, 100, 100, 0.3); border-radius: 8px; padding: 10px; margin-bottom: 20px; color: #ff6464; font-size: 13px;">
+                  <ul style="list-style: none;">
+                      @foreach ($errors->all() as $error)
+                          <li><i class="uil uil-exclamation-circle me-1"></i> {{ $error }}</li>
+                      @endforeach
+                  </ul>
+              </div>
+          @endif
+          
+          @if(session('error'))
+              <div class="error-message">
+                  <div class="text-sm">
+                      <p>{{ session('error') }}</p>
+                  </div>
+              </div>
+          @endif
+
+          <div id="validation-message" class="error-message hidden" style="display: none;">
+              <div class="text-sm">
+                  <p id="validation-text"></p>
+              </div>
+          </div>
+
+          <div class="input-group">
+            <input type="email" class="input-field" id="email" name="email" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
+            <i class="uil uil-envelope input-icon"></i>
+          </div>
+
+          <div class="input-group password-wrapper">
+            <input type="password" class="input-field" id="password" name="password" placeholder="Password" required autocomplete="current-password">
+            <i class="uil uil-lock input-icon"></i>
+            <i class="uil uil-eye-slash toggle-password" id="togglePasswordIcon"></i>
+          </div>
+
+          <div class="options-row">
+            <label class="checkbox">
+              <input type="checkbox" id="remember-me" name="remember" {{ old('remember') ? 'checked' : '' }}> <span>Remember me</span>
+            </label>
+            @if($passwordResetEnabled)
+              <a href="{{ route('password.request') }}" class="forgot-link">Forgot Password?</a>
+            @endif
+          </div>
+
+          <button type="submit" class="login-btn" id="loginBtn">
+            <span class="btn-text">Sign In</span>
+            <i class="uil uil-arrow-right"></i>
+          </button>
+
+          <div class="login-footer">
+            @if($registrationEnabled)
+              Don't have an account? <a href="{{ route('register') }}" class="register-link">Create Account</a>
+            @else
+              Registration is currently disabled.
+            @endif
+          </div>
+        </form>
+      @else
+        <div class="error-message" style="border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(0, 0, 0, 0.18); color: rgba(240, 243, 255, 0.92);">
+          <div style="font-weight: 800; margin-bottom: 6px;">Login temporarily disabled</div>
+          <div style="font-size: 13px;">Please contact the administrator to enable login.</div>
+        </div>
+        @if($passwordResetEnabled)
+          <div style="margin-top: 14px; text-align: center;">
+            <a href="{{ route('password.request') }}" class="forgot-link">Reset Password</a>
+          </div>
         @endif
-        
-        @if(session('error'))
-            <div class="error-message">
-                <div class="text-sm">
-                    <p>{{ session('error') }}</p>
-                </div>
-            </div>
-        @endif
-        
-
-        <!-- Client-side validation message -->
-        <div id="validation-message" class="error-message hidden" style="display: none;">
-            <div class="text-sm">
-                <p id="validation-text"></p>
-            </div>
-        </div>
-
-        <!-- email / username -->
-        <div class="input-group">
-          <input type="email" class="input-field" id="email" name="email" placeholder="Email Address" required autocomplete="email" value="{{ old('email') }}">
-          <i class="uil uil-envelope input-icon"></i>
-        </div>
-
-        <!-- password field + eye toggle -->
-        <div class="input-group password-wrapper">
-          <input type="password" class="input-field" id="password" name="password" placeholder="Password" required autocomplete="current-password">
-          <i class="uil uil-lock input-icon"></i>
-          <i class="uil uil-eye-slash toggle-password" id="togglePasswordIcon"></i>
-        </div>
-
-        <!-- options row -->
-        <div class="options-row">
-          <label class="checkbox">
-            <input type="checkbox" id="remember-me" name="remember" {{ old('remember') ? 'checked' : '' }}> <span>Remember me</span>
-          </label>
-          <a href="{{ route('password.request') }}" class="forgot-link">Forgot Password?</a>
-        </div>
-
-        <!-- login button -->
-        <button type="submit" class="login-btn" id="loginBtn">
-          <span class="btn-text">Sign In</span>
-          <i class="uil uil-arrow-right"></i>
-        </button>
-
-        <!-- footer / link to register -->
-        <div class="login-footer">
-          Don't have an account? <a href="{{ route('register') }}" class="register-link">Create Account</a>
-        </div>
-      </form>
+      @endif
     </div>
   </div>
 
