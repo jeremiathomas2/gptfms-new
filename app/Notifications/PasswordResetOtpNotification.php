@@ -3,10 +3,11 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class PasswordResetOtpNotification extends Notification
+class PasswordResetOtpNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -25,11 +26,12 @@ class PasswordResetOtpNotification extends Notification
     {
         return (new MailMessage())
             ->subject('Your Password Reset OTP')
-            ->greeting('Hello!')
-            ->line('Use the OTP below to reset your password:')
+            ->greeting('Hello ' . ($notifiable->name ?? 'User') . '!')
+            ->line('You are receiving this email because we received a password reset request for your account.')
+            ->line('Use the OTP below to proceed with the reset:')
             ->line($this->otp)
-            ->line("This OTP expires in {$this->minutesValid} minutes.")
-            ->line('If you did not request this, you can ignore this email.');
+            ->line("This OTP is valid for {$this->minutesValid} minutes.")
+            ->line('If you did not request this, no further action is required.');
     }
 }
 

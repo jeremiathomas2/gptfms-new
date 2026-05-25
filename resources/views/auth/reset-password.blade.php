@@ -159,6 +159,7 @@
         return;
       }
       const btn = document.getElementById('resendBtn');
+      const originalText = btn.innerHTML;
       btn.disabled = true;
 
       fetch("{{ route('password.otp.send') }}", {
@@ -166,7 +167,7 @@
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content'),
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
           'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({ email })
@@ -175,12 +176,23 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw data;
         showAlert(alertEl, data.message || 'If this email exists, a new OTP has been sent.', 'success');
+        
+        let seconds = 60;
+        const timer = setInterval(() => {
+          seconds--;
+          if (seconds <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          } else {
+            btn.innerHTML = `<i class="uil uil-clock"></i> Wait ${seconds}s`;
+          }
+        }, 1000);
       })
-      .catch(() => {
-        showAlert(alertEl, 'Failed to resend OTP.', 'error');
-      })
-      .finally(() => {
-        setTimeout(() => { btn.disabled = false; }, 1500);
+      .catch((err) => {
+        showAlert(alertEl, errorMessage(err, 'Failed to resend OTP.'), 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
       });
     }
 
