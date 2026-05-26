@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use App\Models\SystemSetting;
 
 class PasswordResetOtpNotification extends Notification implements ShouldQueue
 {
@@ -19,7 +20,7 @@ class PasswordResetOtpNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return SystemSetting::getBool('notify.email_enabled', true) ? ['mail'] : [];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -34,4 +35,3 @@ class PasswordResetOtpNotification extends Notification implements ShouldQueue
             ->line('If you did not request this, no further action is required.');
     }
 }
-

@@ -6,24 +6,196 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Group;
 use App\Models\GroupMember;
+use App\Models\Message;
+use App\Models\PeerEvaluation;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\SystemSetting;
 use App\Notifications\UserCreatedNotification;
 use App\Services\NextSmsService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
-        $userCount = User::count();
-        $groupCount = Group::count();
-        $projectCount = Project::count();
-        $taskCount = Task::count();
-        
-        return view('dashboard', compact('userCount', 'groupCount', 'projectCount', 'taskCount'));
+        $user = Auth::user();
+
+        $unreadMessages = Message::query()
+            ->where('receiver_id', $user->id)
+            ->where('is_read', false)
+            ->count();
+
+        $dashboardRole = $user->hasRole('admin') ? 'admin' : ($user->hasRole('supervisor') ? 'supervisor' : 'student');
+
+        if ($dashboardRole === 'admin') {
+            $userCount = User::count();
+            $activeUserCount = User::active()->count();
+            $onlineUserCount = User::query()->where('last_seen_at', '>', now()->subMinutes(5))->count();
+
+            $groupCount = Group::count();
+            $activeGroupCount = Group::active()->count();
+            $projectCount = Project::count();
+            $activeProjectCount = Project::active()->count();
+            $taskCount = Task::count();
+
+            $taskStatusCounts = Task::query()
+                ->select('status', DB::raw('COUNT(*) as c'))
+                ->groupBy('status')
+                ->pluck('c', 'status');
+
+            $recentUsers = User::query()->latest()->take(6)->get();
+            $recentGroups = Group::query()->with(['supervisor', 'project'])->latest()->take(6)->get();
+
+            $jobsPending = DB::table('jobs')->count();
+            $failedJobs = DB::table('failed_jobs')->count();
+
+            $authSettings = [
+                'login_enabled' => SystemSetting::getBool('auth.login_enabled', true),
+                'password_reset_enabled' => SystemSetting::getBool('auth.password_reset_enabled', true),
+                'registration_enabled' => SystemSetting::getBool('auth.registration_enabled', true),
+            ];
+
+            return view('dashboard', compact(
+                'dashboardRole',
+                'unreadMessages',
+                'userCount',
+                'activeUserCount',
+                'onlineUserCount',
+                'groupCount',
+                'activeGroupCount',
+                'projectCount',
+                'activeProjectCount',
+                'taskCount',
+                'taskStatusCounts',
+                'recentUsers',
+                'recentGroups',
+                'jobsPending',
+                'failedJobs',
+                'authSettings',
+            ));
+        }
+
+        if ($dashboardRole === 'supervisor') {
+            $projectIds = Project::query()->where('supervisor_id', $user->id)->pluck('id');
+
+            $myGroupCount = Group::query()->where('supervisor_id', $user->id)->count();
+            $activeProjectCount = Project::query()->where('supervisor_id', $user->id)->active()->count();
+            $overdueProjectCount = Project::query()->where('supervisor_id', $user->id)->overdue()->count();
+
+            $overdueTaskCount = Task::query()
+                ->whereIn('project_id', $projectIds)
+                ->overdue()
+                ->count();
+
+            $pendingReviewTasks = Task::query()
+                ->whereIn('project_id', $projectIds)
+                ->where('status', 'review')
+                ->count();
+
+            $recentGroups = Group::query()
+                ->where('supervisor_id', $user->id)
+                ->with(['project'])
+                ->withCount(['activeMembers'])
+                ->latest()
+                ->take(6)
+                ->get();
+
+            $recentEvaluations = PeerEvaluation::query()
+                ->submitted()
+                ->whereIn('project_id', $projectIds)
+                ->with(['evaluator', 'evaluated', 'project'])
+                ->latest('submitted_at')
+                ->take(6)
+                ->get();
+
+            return view('dashboard', compact(
+                'dashboardRole',
+                'unreadMessages',
+                'myGroupCount',
+                'activeProjectCount',
+                'overdueProjectCount',
+                'overdueTaskCount',
+                'pendingReviewTasks',
+                'recentGroups',
+                'recentEvaluations',
+            ));
+        }
+
+        $activeMembership = $user->activeGroup()->with('group.activeMembers.user', 'group.project', 'group.supervisor')->first();
+        $group = $activeMembership?->group;
+        $project = $group?->project;
+
+        $todoTaskCount = Task::query()
+            ->where('assigned_to', $user->id)
+            ->whereIn('status', ['todo', 'in_progress', 'review'])
+            ->count();
+
+        $dueSoonCount = Task::query()
+            ->where('assigned_to', $user->id)
+            ->whereNotNull('due_date')
+            ->where('due_date', '>=', now())
+            ->where('due_date', '<=', now()->addDays(7))
+            ->whereNotIn('status', ['completed'])
+            ->count();
+
+        $upcomingTasks = Task::query()
+            ->where('assigned_to', $user->id)
+            ->whereNotIn('status', ['completed'])
+            ->with('project')
+            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('due_date')
+            ->latest('created_at')
+            ->take(6)
+            ->get();
+
+        $surveyCompleted = (bool) ($user->studentSkillsSurvey?->completed_at);
+
+        $evaluationTotalPeers = 0;
+        $evaluationSubmitted = 0;
+        $evaluationPending = 0;
+
+        if ($group && $group->project_id) {
+            $peerIds = $group->activeMembers
+                ->pluck('user_id')
+                ->filter()
+                ->reject(fn ($id) => (int) $id === (int) $user->id)
+                ->values();
+
+            $evaluationTotalPeers = $peerIds->count();
+
+            if ($evaluationTotalPeers > 0) {
+                $evaluationSubmitted = PeerEvaluation::query()
+                    ->where('evaluator_id', $user->id)
+                    ->where('project_id', $group->project_id)
+                    ->where('status', 'submitted')
+                    ->count();
+            }
+
+            $evaluationPending = max(0, $evaluationTotalPeers - $evaluationSubmitted);
+        }
+
+        $groupMembers = $group
+            ? $group->activeMembers()->with('user')->get()->pluck('user')->filter()->values()
+            : collect();
+
+        return view('dashboard', compact(
+            'dashboardRole',
+            'unreadMessages',
+            'group',
+            'project',
+            'todoTaskCount',
+            'dueSoonCount',
+            'upcomingTasks',
+            'surveyCompleted',
+            'evaluationTotalPeers',
+            'evaluationSubmitted',
+            'evaluationPending',
+            'groupMembers',
+        ));
     }
 
     public function control()
@@ -33,14 +205,21 @@ class AdminController extends Controller
         SystemSetting::setDefault('auth.login_enabled', true);
         SystemSetting::setDefault('auth.password_reset_enabled', true);
         SystemSetting::setDefault('auth.registration_enabled', true);
+        SystemSetting::setDefault('notify.email_enabled', true);
+        SystemSetting::setDefault('notify.sms_enabled', true);
 
         $settings = [
             'login_enabled' => SystemSetting::getBool('auth.login_enabled', true),
             'password_reset_enabled' => SystemSetting::getBool('auth.password_reset_enabled', true),
             'registration_enabled' => SystemSetting::getBool('auth.registration_enabled', true),
+            'email_enabled' => SystemSetting::getBool('notify.email_enabled', true),
+            'sms_enabled' => SystemSetting::getBool('notify.sms_enabled', true),
         ];
 
-        return view('admin.control', compact('settings'));
+        $jobsPending = DB::table('jobs')->count();
+        $failedJobs = DB::table('failed_jobs')->count();
+
+        return view('admin.control', compact('settings', 'jobsPending', 'failedJobs'));
     }
 
     public function updateControl(Request $request)
@@ -51,11 +230,15 @@ class AdminController extends Controller
             'login_enabled' => 'required|boolean',
             'password_reset_enabled' => 'required|boolean',
             'registration_enabled' => 'required|boolean',
+            'email_enabled' => 'required|boolean',
+            'sms_enabled' => 'required|boolean',
         ]);
 
         SystemSetting::set('auth.login_enabled', (bool) $validated['login_enabled']);
         SystemSetting::set('auth.password_reset_enabled', (bool) $validated['password_reset_enabled']);
         SystemSetting::set('auth.registration_enabled', (bool) $validated['registration_enabled']);
+        SystemSetting::set('notify.email_enabled', (bool) $validated['email_enabled']);
+        SystemSetting::set('notify.sms_enabled', (bool) $validated['sms_enabled']);
 
         return back()->with('status', 'System settings updated successfully.');
     }
@@ -63,6 +246,7 @@ class AdminController extends Controller
     public function sendSystemEmail(Request $request)
     {
         abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+        abort_if(!SystemSetting::getBool('notify.email_enabled', true), 403, 'Email sending is disabled by the administrator.');
 
         $validated = $request->validate([
             'audience' => 'required|in:all,student,supervisor,admin',
@@ -73,26 +257,32 @@ class AdminController extends Controller
         $users = $this->resolveAudienceUsers($validated['audience']);
         $emails = $users->pluck('email')->filter()->unique()->values();
 
-        $sent = 0;
-        foreach ($emails as $email) {
-            try {
-                Mail::send('emails.system-broadcast', [
-                    'subject' => $validated['subject'],
-                    'body' => $validated['message'],
-                ], function ($m) use ($email, $validated) {
-                    $m->to($email)->subject($validated['subject']);
-                });
-                $sent++;
-            } catch (\Throwable $e) {
-            }
+        $queued = 0;
+        foreach ($emails->chunk(50) as $chunk) {
+            $toList = $chunk->values()->all();
+            $payload = [
+                'subject' => $validated['subject'],
+                'body' => $validated['message'],
+            ];
+
+            dispatch(function () use ($toList, $payload) {
+                foreach ($toList as $email) {
+                    Mail::send('emails.system-broadcast', $payload, function ($m) use ($email, $payload) {
+                        $m->to($email)->subject($payload['subject']);
+                    });
+                }
+            });
+
+            $queued += count($toList);
         }
 
-        return back()->with('status', "Email sent to {$sent} recipient(s).");
+        return back()->with('status', "Email queued to {$queued} recipient(s).");
     }
 
     public function sendSystemSms(Request $request)
     {
         abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+        abort_if(!SystemSetting::getBool('notify.sms_enabled', true), 403, 'SMS sending is disabled by the administrator.');
 
         $validated = $request->validate([
             'audience' => 'required|in:all,student,supervisor,admin',
@@ -102,19 +292,22 @@ class AdminController extends Controller
         $users = $this->resolveAudienceUsers($validated['audience']);
         $phones = $users->pluck('phone')->filter()->unique()->values();
 
-        $service = new NextSmsService();
-        $sent = 0;
+        $queued = 0;
+        foreach ($phones->chunk(80) as $chunk) {
+            $toList = $chunk->values()->all();
+            $text = $validated['message'];
 
-        foreach ($phones as $phone) {
-            try {
-                if ($service->sendSms($phone, $validated['message'])) {
-                    $sent++;
+            dispatch(function () use ($toList, $text) {
+                $service = new NextSmsService();
+                foreach ($toList as $phone) {
+                    $service->sendSms($phone, $text);
                 }
-            } catch (\Throwable $e) {
-            }
+            });
+
+            $queued += count($toList);
         }
 
-        return back()->with('status', "SMS sent to {$sent} recipient(s).");
+        return back()->with('status', "SMS queued to {$queued} recipient(s).");
     }
 
     public function clearSystemCache()
@@ -124,6 +317,26 @@ class AdminController extends Controller
         Artisan::call('optimize:clear');
 
         return back()->with('status', 'System cache cleared.');
+    }
+
+    public function processQueueNow()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $before = DB::table('jobs')->count();
+
+        Artisan::call('queue:work', [
+            '--stop-when-empty' => true,
+            '--tries' => 3,
+            '--timeout' => 120,
+            '--max-jobs' => 200,
+            '--max-time' => 60,
+        ]);
+
+        $after = DB::table('jobs')->count();
+        $processed = max(0, $before - $after);
+
+        return back()->with('status', "Queue processed. Jobs handled: {$processed}. Remaining: {$after}.");
     }
 
     public function users()

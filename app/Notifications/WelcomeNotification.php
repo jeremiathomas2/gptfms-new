@@ -5,7 +5,8 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Services\NextSmsService;
+use App\Models\SystemSetting;
+use App\Notifications\Channels\SmsChannel;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -24,18 +25,18 @@ class WelcomeNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $channels = [];
+        if (SystemSetting::getBool('notify.email_enabled', true)) {
+            $channels[] = 'mail';
+        }
+        if (SystemSetting::getBool('notify.sms_enabled', true) && !empty($notifiable->phone)) {
+            $channels[] = SmsChannel::class;
+        }
+        return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        // Trigger SMS as well (this will run on the queue)
-        try {
-            $this->sendSms($notifiable);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("SMS failed in WelcomeNotification: " . $e->getMessage());
-        }
-
         $mail = (new MailMessage)
             ->subject('Welcome to GPTF Management System')
             ->greeting('Hello ' . $notifiable->name . '!')
@@ -64,19 +65,16 @@ class WelcomeNotification extends Notification implements ShouldQueue
         ];
     }
 
-    public function sendSms(object $notifiable)
+    public function toSms(object $notifiable): string
     {
-        if ($notifiable->phone) {
-            $smsService = new NextSmsService();
-            $message = "Hello {$notifiable->name} Welcome to GPTF Management System. ";
-            if ($this->type === 'student') {
-                $message .= "Kindly Login to complete filling your skills. ";
-            } else {
-                $message .= "Kindly Login to view your assigned groups. ";
-            }
-            $message .= "User: {$notifiable->email}, Pwd: {$this->password}. Link: gptfms.jezdantech.com";
-            
-            $smsService->sendSms($notifiable->phone, $message);
+        $message = "Hello {$notifiable->name} Welcome to GPTF Management System. ";
+        if ($this->type === 'student') {
+            $message .= "Kindly Login to complete filling your skills. ";
+        } else {
+            $message .= "Kindly Login to view your assigned groups. ";
         }
+        $message .= "User: {$notifiable->email}, Pwd: {$this->password}. Link: gptfms.jezdantech.com";
+
+        return $message;
     }
 }

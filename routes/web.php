@@ -62,6 +62,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/control/email', [AdminController::class, 'sendSystemEmail'])->name('admin.control.email');
     Route::post('/admin/control/sms', [AdminController::class, 'sendSystemSms'])->name('admin.control.sms');
     Route::post('/admin/control/cache-clear', [AdminController::class, 'clearSystemCache'])->name('admin.control.cache_clear');
+    Route::post('/admin/control/process-queue', [AdminController::class, 'processQueueNow'])->name('admin.control.process_queue');
     Route::get('/admin/users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show');
     Route::post('/admin/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::post('/admin/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('admin.users.reset_password');

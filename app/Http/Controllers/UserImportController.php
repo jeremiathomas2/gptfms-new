@@ -13,6 +13,37 @@ use App\Notifications\WelcomeNotification;
 
 class UserImportController extends Controller
 {
+    private function normalizeTzPhone(?string $value): ?string
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        }
+
+        if (str_starts_with($digits, '255') && strlen($digits) === 12) {
+            return $digits;
+        }
+
+        if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
+            return '255' . substr($digits, 1);
+        }
+
+        if (strlen($digits) === 9) {
+            return '255' . $digits;
+        }
+
+        return $digits;
+    }
+
     public function downloadTemplate($type)
     {
         $headers = [];
@@ -86,7 +117,11 @@ class UserImportController extends Controller
         fclose($handle);
 
         $emails = collect($rows)->pluck('email')->filter()->toArray();
-        $phones = collect($rows)->pluck('phonenumber')->merge(collect($rows)->pluck('phone'))->filter()->toArray();
+        $phones = collect($rows)
+            ->map(fn ($r) => $this->normalizeTzPhone($r['phonenumber'] ?? ($r['phone'] ?? null)))
+            ->filter()
+            ->values()
+            ->toArray();
         $regNumbers = collect($rows)->pluck('registrationnumber')->merge(collect($rows)->pluck('regnumber'))->filter()->toArray();
 
         $existingUsers = User::whereIn('email', $emails)
@@ -102,7 +137,7 @@ class UserImportController extends Controller
             $email = $row['email'] ?? null;
             $firstName = $row['firstname'] ?? '';
             $lastName = $row['lastname'] ?? '';
-            $phone = $row['phonenumber'] ?? $row['phone'] ?? null;
+            $phone = $this->normalizeTzPhone($row['phonenumber'] ?? ($row['phone'] ?? null));
             $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? null;
 
             if (!$email) {
@@ -133,7 +168,7 @@ class UserImportController extends Controller
                 $firstName = $row['firstname'] ?? '';
                 $middleName = $row['middlename'] ?? null;
                 $lastName = $row['lastname'] ?? '';
-                $phone = $row['phonenumber'] ?? $row['phone'] ?? null;
+                $phone = $this->normalizeTzPhone($row['phonenumber'] ?? ($row['phone'] ?? null));
                 $regNumber = $row['registrationnumber'] ?? $row['regnumber'] ?? null;
                 $gender = $row['gender'] ?? 'other';
 

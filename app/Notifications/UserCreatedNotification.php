@@ -5,7 +5,8 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Services\NextSmsService;
+use App\Models\SystemSetting;
+use App\Notifications\Channels\SmsChannel;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -22,18 +23,18 @@ class UserCreatedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $channels = [];
+        if (SystemSetting::getBool('notify.email_enabled', true)) {
+            $channels[] = 'mail';
+        }
+        if (SystemSetting::getBool('notify.sms_enabled', true) && !empty($notifiable->phone)) {
+            $channels[] = SmsChannel::class;
+        }
+        return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        // Trigger SMS as well (this will run on the queue)
-        try {
-            $this->sendSms($notifiable);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("SMS failed in UserCreatedNotification: " . $e->getMessage());
-        }
-
         $role = $notifiable->hasRole('supervisor') ? 'Supervisor' : 'Student';
         return (new MailMessage)
             ->subject('Welcome to GPTFMS')
@@ -56,13 +57,8 @@ class UserCreatedNotification extends Notification implements ShouldQueue
         ];
     }
 
-    // Custom method to send SMS via the service
-    public function sendSms(object $notifiable)
+    public function toSms(object $notifiable): string
     {
-        if ($notifiable->phone) {
-            $smsService = new NextSmsService();
-            $message = "Hello {$notifiable->name}, your GPTFMS account is ready. Email: {$notifiable->email}, Pwd: {$this->password}. Login at: " . url('/login');
-            $smsService->sendSms($notifiable->phone, $message);
-        }
+        return "Hello {$notifiable->name}, your GPTFMS account is ready. Email: {$notifiable->email}, Pwd: {$this->password}. Login at: " . url('/login');
     }
 }

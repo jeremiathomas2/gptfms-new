@@ -27,6 +27,13 @@ class PasswordResetOtpController extends Controller
             return redirect()->route('login')->with('error', 'Password reset is temporarily disabled by the administrator.');
         }
 
+        if (!SystemSetting::getBool('notify.email_enabled', true)) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Email sending is disabled by the administrator.'], 403);
+            }
+            return redirect()->route('login')->with('error', 'Email sending is disabled by the administrator.');
+        }
+
         $validated = $request->validate([
             'email' => 'required|email',
         ]);

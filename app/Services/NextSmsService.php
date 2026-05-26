@@ -7,43 +7,69 @@ use Illuminate\Support\Facades\Log;
 
 class NextSmsService
 {
-    protected $baseUrl = 'https://messaging-service.co.tz/api/v1';
-    protected $username;
-    protected $password;
     protected $senderId;
+    protected $apiToken;
+    protected $baseUrl;
+    protected bool $testMode;
 
     public function __construct()
     {
-        $this->username = env('NEXTSMS_USERNAME');
-        $this->password = env('NEXTSMS_PASSWORD');
         $this->senderId = env('NEXTSMS_SENDER_ID', 'NEXTSMS');
+        $this->apiToken = env('NEXTSMS_API_TOKEN');
+        $this->baseUrl = rtrim(env('NEXTSMS_BASE_URL', 'https://messaging-service.co.tz'), '/');
+        $this->testMode = filter_var(env('NEXTSMS_TEST_MODE', false), FILTER_VALIDATE_BOOL);
     }
 
     public function sendSms($to, $message)
     {
-        // Format number to international format if needed
         $to = $this->formatNumber($to);
 
-        if (env('APP_ENV') === 'local' || env('NEXTSMS_MOCK', true)) {
+        if (env('NEXTSMS_MOCK', false)) {
             Log::info("MOCK SMS to {$to}: {$message}");
             return true;
         }
 
         try {
-            $response = Http::withBasicAuth($this->username, $this->password)
-                ->post("{$this->baseUrl}/send-sms", [
+            if (!$this->apiToken) {
+                Log::error('NextSMS Error: NEXTSMS_API_TOKEN is not configured.');
+                return false;
+            }
+
+            $endpoint = $this->testMode ? '/api/sms/v2/test/text/single' : '/api/sms/v2/text/single';
+
+            $response = Http::withToken($this->apiToken)
+                ->acceptJson()
+                ->asJson()
+                ->timeout(30)
+                ->post("{$this->baseUrl}{$endpoint}", [
                     'from' => $this->senderId,
                     'to' => $to,
-                    'text' => $message
+                    'text' => $message,
                 ]);
 
             if ($response->successful()) {
+                $json = $response->json();
+                if (is_array($json)) {
+                    $messageId = $json['messages'][0]['messageId'] ?? null;
+                    $status = $json['messages'][0]['status'] ?? null;
+                    Log::info('NextSMS Sent', [
+                        'to' => $to,
+                        'messageId' => $messageId,
+                        'status' => $status,
+                    ]);
+                } else {
+                    Log::info('NextSMS Sent', ['to' => $to]);
+                }
                 return true;
             }
 
-            Log::error("NextSMS Error: " . $response->body());
+            $body = $response->body();
+            if (is_string($body) && strlen($body) > 1200) {
+                $body = substr($body, 0, 1200) . '...';
+            }
+            Log::error("NextSMS Error: HTTP {$response->status()} - {$body}");
             return false;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("NextSMS Exception: " . $e->getMessage());
             return false;
         }
@@ -51,10 +77,33 @@ class NextSmsService
 
     protected function formatNumber($number)
     {
-        // Basic TZ number formatting (0... -> 255...)
-        if (str_starts_with($number, '0')) {
-            return '255' . substr($number, 1);
+        $raw = trim((string) $number);
+        if ($raw === '') {
+            return '';
         }
-        return $number;
+
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+
+        if ($digits === '') {
+            return '';
+        }
+
+        if (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        }
+
+        if (str_starts_with($digits, '255') && strlen($digits) === 12) {
+            return $digits;
+        }
+
+        if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
+            return '255' . substr($digits, 1);
+        }
+
+        if (strlen($digits) === 9) {
+            return '255' . $digits;
+        }
+
+        return $digits;
     }
 }

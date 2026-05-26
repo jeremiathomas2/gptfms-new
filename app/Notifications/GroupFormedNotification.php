@@ -5,7 +5,8 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Services\NextSmsService;
+use App\Models\SystemSetting;
+use App\Notifications\Channels\SmsChannel;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -24,18 +25,18 @@ class GroupFormedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        $channels = [];
+        if (SystemSetting::getBool('notify.email_enabled', true)) {
+            $channels[] = 'mail';
+        }
+        if (SystemSetting::getBool('notify.sms_enabled', true) && !empty($notifiable->phone)) {
+            $channels[] = SmsChannel::class;
+        }
+        return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        // Trigger SMS as well (this will run on the queue)
-        try {
-            $this->sendSms($notifiable);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("SMS failed in GroupFormedNotification: " . $e->getMessage());
-        }
-
         $mail = (new MailMessage)
             ->subject('Group Formation Notification')
             ->greeting('Hello ' . $notifiable->name . '!');
@@ -67,18 +68,12 @@ class GroupFormedNotification extends Notification implements ShouldQueue
         ];
     }
 
-    public function sendSms(object $notifiable)
+    public function toSms(object $notifiable): string
     {
-        if ($notifiable->phone) {
-            $smsService = new NextSmsService();
-            if ($this->type === 'student') {
-                $message = "Hello {$notifiable->name}, Congratulation! You joined {$this->data['group_name']}. Supervisor: {$this->data['supervisor_name']} ({$this->data['supervisor_phone']}). Visit: gptfms.jezdantech.com";
-            } else {
-                $groups = implode(', ', $this->data['groups']);
-                $message = "Hello {$notifiable->name}, Congratulation! You are assigned to supervise: {$groups}. Visit: gptfms.jezdantech.com";
-            }
-            
-            $smsService->sendSms($notifiable->phone, $message);
+        if ($this->type === 'student') {
+            return "Hello {$notifiable->name}, Congratulation! You joined {$this->data['group_name']}. Supervisor: {$this->data['supervisor_name']} ({$this->data['supervisor_phone']}). Visit: gptfms.jezdantech.com";
         }
+        $groups = implode(', ', $this->data['groups']);
+        return "Hello {$notifiable->name}, Congratulation! You are assigned to supervise: {$groups}. Visit: gptfms.jezdantech.com";
     }
 }

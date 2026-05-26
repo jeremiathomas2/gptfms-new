@@ -66,9 +66,50 @@
                     </div>
                 </div>
 
+                <div style="height:12px"></div>
+                <div style="font-weight:900;font-size:14px;margin-bottom:6px">Notification Controls</div>
+                <div style="color:var(--text-muted);font-size:13px;margin-bottom:10px">Enable or disable outbound SMS and Email across the system.</div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+                    <div>
+                        <div style="font-weight:800">Email Sending</div>
+                        <div style="color:var(--text-muted);font-size:12.5px">Allow system emails (welcome, group formed, broadcasts)</div>
+                    </div>
+                    <div>
+                        <input type="hidden" name="email_enabled" value="0">
+                        <input type="checkbox" name="email_enabled" value="1" {{ ($settings['email_enabled'] ?? true) ? 'checked' : '' }}>
+                    </div>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0">
+                    <div>
+                        <div style="font-weight:800">SMS Sending</div>
+                        <div style="color:var(--text-muted);font-size:12.5px">Allow system SMS (welcome, group formed, broadcasts)</div>
+                    </div>
+                    <div>
+                        <input type="hidden" name="sms_enabled" value="0">
+                        <input type="checkbox" name="sms_enabled" value="1" {{ ($settings['sms_enabled'] ?? true) ? 'checked' : '' }}>
+                    </div>
+                </div>
+
                 <div style="display:flex;gap:10px;margin-top:14px">
                     <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-save me-1"></i> Save</button>
                 </div>
+            </form>
+        </div>
+
+        <div class="card" style="padding:16px">
+            <div style="font-weight:900;font-size:15px;margin-bottom:6px">Queue Status</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">SMS and email are sent by queued jobs. The queue worker must be running.</div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <span class="badge badge-blue"><i class="uil uil-server me-1"></i> Pending jobs: {{ (int) ($jobsPending ?? 0) }}</span>
+                <span class="badge {{ ((int) ($failedJobs ?? 0)) > 0 ? 'badge-red' : 'badge-green' }}"><i class="uil uil-bug me-1"></i> Failed jobs: {{ (int) ($failedJobs ?? 0) }}</span>
+            </div>
+
+            <form method="POST" action="{{ route('admin.control.process_queue') }}">
+                @csrf
+                <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-play me-1"></i> Process Queue Now</button>
             </form>
         </div>
 
@@ -134,4 +175,3 @@
     </div>
 </div>
 @endsection
-
