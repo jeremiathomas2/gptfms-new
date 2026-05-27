@@ -11,6 +11,15 @@ class Project extends Model
 {
     use HasFactory;
 
+    public const PHASES = [
+        1 => 'Project Title',
+        2 => 'Gather Requirement',
+        3 => 'Analysis',
+        4 => 'Designing',
+        5 => 'Development and Testing',
+        6 => 'Deployment',
+    ];
+
     protected $fillable = [
         'title',
         'description',
@@ -51,6 +60,11 @@ class Project extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function phases(): HasMany
+    {
+        return $this->hasMany(ProjectPhase::class)->orderBy('phase_number');
     }
 
     public function milestones(): HasMany
@@ -98,6 +112,26 @@ class Project extends Model
     public function getDaysRemaining(): ?int
     {
         return $this->end_date ? now()->diffInDays($this->end_date, false) : null;
+    }
+
+    public function getApprovedPhaseCount(): int
+    {
+        return $this->phases()->where('status', 'approved')->count();
+    }
+
+    public function getPhaseProgressPercent(): float
+    {
+        $total = count(self::PHASES);
+        if ($total <= 0) {
+            return 0;
+        }
+        return ($this->getApprovedPhaseCount() / $total) * 100;
+    }
+
+    public function getCurrentPhaseNumber(): int
+    {
+        $approved = $this->getApprovedPhaseCount();
+        return min($approved + 1, count(self::PHASES));
     }
 
     // Scopes

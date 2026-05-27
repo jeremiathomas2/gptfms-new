@@ -10,6 +10,7 @@ use App\Models\StudentProfile;
 use App\Models\Group;
 use App\Models\GroupMember;
 use App\Models\Project;
+use App\Models\ProjectPhase;
 use App\Models\Task;
 use App\Models\Skill;
 
@@ -29,6 +30,7 @@ class DatabaseSeeder extends Seeder
         DB::table('messages')->truncate();
         DB::table('tasks')->truncate();
         DB::table('milestones')->truncate();
+        DB::table('project_phases')->truncate();
         DB::table('projects')->truncate();
         DB::table('group_members')->truncate();
         DB::table('groups')->truncate();
@@ -269,11 +271,14 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($projects as $index => $projectData) {
+            $group = Group::skip($index)->first();
+            $supervisor = User::role('supervisor')->skip($index)->first();
+
             $project = Project::create([
                 'title' => $projectData['title'],
                 'description' => $projectData['description'],
-                'supervisor_id' => User::role('supervisor')->skip($index)->first()->id,
-                'group_id' => Group::skip($index)->first()->id,
+                'supervisor_id' => $supervisor->id,
+                'group_id' => $group->id,
                 'status' => 'in_progress',
                 'priority' => $projectData['priority'],
                 'start_date' => $projectData['start_date'],
@@ -293,6 +298,29 @@ class DatabaseSeeder extends Seeder
                 'course_code' => $projectData['course_code'],
                 'max_grade' => $projectData['max_grade'],
             ]);
+
+            $group->update([
+                'project_id' => $project->id,
+                'supervisor_id' => $supervisor->id,
+            ]);
+
+            foreach (Project::PHASES as $n => $title) {
+                $status = $n <= 2 ? 'approved' : ($n === 3 ? 'submitted' : 'not_started');
+                ProjectPhase::create([
+                    'project_id' => $project->id,
+                    'phase_number' => $n,
+                    'phase_title' => $title,
+                    'submission' => $n === 1 ? $project->title : ($n === 2 ? 'Initial requirements drafted by the team.' : ($n === 3 ? 'Analysis draft submitted for review.' : null)),
+                    'submitted_by' => $group->activeMembers()->first()?->user_id,
+                    'submitted_at' => $status !== 'not_started' ? now()->subDays(2) : null,
+                    'status' => $status,
+                    'supervisor_notes' => $status === 'approved' ? 'Approved.' : null,
+                    'reviewed_by' => $status === 'approved' ? $supervisor->id : null,
+                    'reviewed_at' => $status === 'approved' ? now()->subDay() : null,
+                ]);
+            }
+
+            $project->update(['progress_percentage' => round((2 / 6) * 100, 2)]);
         }
     }
 

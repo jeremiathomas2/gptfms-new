@@ -130,7 +130,7 @@
                 <div class="form-group">
                     <label class="form-label">Course / Project</label>
                     <select name="project_id" class="form-control" required>
-                        @php $projects = \App\Models\Project::all(); @endphp
+                        @php $projects = \App\Models\Project::whereNull('group_id')->get(); @endphp
                         @foreach($projects as $project)
                             <option value="{{ $project->id }}">{{ $project->course_code }} – {{ $project->title }}</option>
                         @endforeach
@@ -228,7 +228,7 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             </a>
             @endrole
             <a href="{{ route('projects') }}" class="nav-item {{ request()->routeIs('projects') ? 'active' : '' }}">
-                <span class="nav-icon"><i class="uil uil-folder"></i></span><span class="nav-label">Projects</span>
+                <span class="nav-icon"><i class="uil uil-folder"></i></span><span class="nav-label">@role('student') Project @else Projects @endrole</span>
             </a>
             <a href="{{ route('tasks') }}" class="nav-item {{ request()->routeIs('tasks') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-check-circle"></i></span><span class="nav-label">Tasks</span>

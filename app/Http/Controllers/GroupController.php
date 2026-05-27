@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Group;
 use App\Models\GroupMember;
+use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -116,14 +117,28 @@ class GroupController extends Controller
         try {
             DB::beginTransaction();
 
+            $project = Project::lockForUpdate()->find($validated['project_id']);
+            if (!$project) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Project not found.'], 422);
+            }
+
+            if (!empty($project->group_id)) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'This project is already assigned to a group.'], 422);
+            }
+
             $group = Group::create([
                 'name' => $validated['name'],
                 'project_id' => $validated['project_id'],
                 'max_members' => $validated['max_members'],
                 'description' => $validated['description'],
                 'created_by' => Auth::id(),
+                'supervisor_id' => $project->supervisor_id,
                 'status' => 'active',
             ]);
+
+            $project->update(['group_id' => $group->id]);
 
             // Automatically add the creator as a leader
             GroupMember::create([

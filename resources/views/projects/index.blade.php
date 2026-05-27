@@ -6,7 +6,9 @@
 <div class="page active" id="page-projects">
     <div class="section-header">
         <div><div class="section-title">Projects</div><div class="section-sub">Track progress and deadlines</div></div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-project')"><i class="uil uil-folder-plus me-1"></i> Create Project</button>
+        @role('admin')
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-project')"><i class="uil uil-folder-plus me-1"></i> Create Project</button>
+        @endrole
     </div>
     <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
@@ -22,11 +24,13 @@
                         <td><strong>{{ $project->title }}</strong></td>
                         <td>{{ $project->group->name ?? 'Unassigned' }}</td>
                         <td>{{ $project->course_code }}</td>
-                        <td><i class="uil uil-calendar-alt me-1"></i> {{ $project->deadline ? $project->deadline->format('M d, Y') : 'N/A' }}</td>
+                        <td><i class="uil uil-calendar-alt me-1"></i> {{ $project->end_date ? $project->end_date->format('M d, Y') : 'N/A' }}</td>
                         <td>
-                            <span class="badge {{ $project->status === 'completed' ? 'badge-green' : ($project->status === 'at_risk' ? 'badge-red' : 'badge-amber') }}">
-                                {{ ucfirst($project->status) }}
-                            </span>
+                            @php
+                                $status = $project->status;
+                                $badge = $status === 'completed' ? 'badge-green' : (in_array($status, ['cancelled'], true) ? 'badge-red' : 'badge-amber');
+                            @endphp
+                            <span class="badge {{ $badge }}">{{ str_replace('_', ' ', ucfirst($status)) }}</span>
                         </td>
                         <td>
                             <div class="progress-bar" style="width:120px">
@@ -34,7 +38,7 @@
                             </div>
                         </td>
                         <td>
-                            <button class="btn btn-ghost btn-sm" onclick="toast('Opening project…','<i class=\'uil uil-folder-open\'></i>')"><i class="uil uil-eye"></i></button>
+                            <a class="btn btn-ghost btn-sm" href="{{ route('projects.show', $project) }}"><i class="uil uil-eye"></i></a>
                         </td>
                     </tr>
                     @endforeach
@@ -47,77 +51,86 @@
     </div>
 </div>
 
-<!-- ═══════════════ CREATE PROJECT MODAL ═══════════════ -->
-<div class="modal-overlay" id="modal-project">
-    <div class="modal">
-        <div class="modal-header">
-            <span class="modal-title">Create New Project</span>
-            <span class="modal-close" onclick="closeModal('modal-project')"><i class="uil uil-multiply"></i></span>
+@role('admin')
+    <!-- ═══════════════ CREATE PROJECT MODAL ═══════════════ -->
+    <div class="modal-overlay" id="modal-project">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Create New Project</span>
+                <span class="modal-close" onclick="closeModal('modal-project')"><i class="uil uil-multiply"></i></span>
+            </div>
+            <form id="createProjectForm">
+                @csrf
+                <div class="form-group">
+                    <label class="form-label">Project Title</label>
+                    <input name="title" class="form-control" placeholder="e.g. AI Research Platform" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Course Code</label>
+                        <input name="course_code" class="form-control" placeholder="e.g. CS401" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deadline</label>
+                        <input name="end_date" type="date" class="form-control" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Supervisor</label>
+                    <select name="supervisor_id" class="form-control" required>
+                        <option value="" disabled selected>Select Supervisor</option>
+                        @foreach(($supervisors ?? collect()) as $supervisor)
+                            <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Group</label>
+                    <select name="group_id" class="form-control" required>
+                        <option value="" disabled selected>Select Group</option>
+                        @foreach(($availableGroups ?? collect()) as $group)
+                            <option value="{{ $group->id }}">{{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="4" placeholder="Project objectives and scope..." required></textarea>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('modal-project')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
         </div>
-        <form id="createProjectForm">
-            @csrf
-            <div class="form-group">
-                <label class="form-label">Project Title</label>
-                <input name="title" class="form-control" placeholder="e.g. AI Research Platform" required />
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Course Code</label>
-                    <input name="course_code" class="form-control" placeholder="e.g. CS401" required />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Deadline</label>
-                    <input name="deadline" type="date" class="form-control" required />
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Supervisor</label>
-                <select name="supervisor_id" class="form-control">
-                    <option value="">Select Supervisor</option>
-                    @php $supervisors = \App\Models\User::role('supervisor')->get(); @endphp
-                    @foreach($supervisors as $supervisor)
-                        <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea name="description" class="form-control" rows="4" placeholder="Project objectives and scope..." required></textarea>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
-                <button type="button" class="btn btn-outline" onclick="closeModal('modal-project')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Project</button>
-            </div>
-        </form>
     </div>
-</div>
 
-<script>
-document.getElementById('createProjectForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    
-    fetch("{{ route('projects.store') }}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            toast(data.message, '<i class="uil uil-check"></i>');
-            closeModal('modal-project');
-            setTimeout(() => window.location.reload(), 1000);
-        } else {
-            toast(data.message || 'Error creating project', '<i class="uil uil-exclamation-triangle"></i>');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        toast('An error occurred. Please try again.', '<i class="uil uil-exclamation-triangle"></i>');
+    <script>
+    document.getElementById('createProjectForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch("{{ route('projects.store') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                toast(data.message, '<i class="uil uil-check"></i>');
+                closeModal('modal-project');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                toast(data.message || 'Error creating project', '<i class="uil uil-exclamation-triangle"></i>');
+            }
+        })
+        .catch(() => {
+            toast('An error occurred. Please try again.', '<i class="uil uil-exclamation-triangle"></i>');
+        });
     });
-});
-</script>
+    </script>
+@endrole
 @endsection

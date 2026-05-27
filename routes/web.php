@@ -8,6 +8,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SupervisorController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AnalyticsController;
 
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProfileController;
@@ -36,26 +37,28 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects');
     Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::post('/projects/{project}/phases/{phaseNumber}/submit', [ProjectController::class, 'submitPhase'])->name('projects.phases.submit');
+    Route::post('/projects/{project}/phases/{phaseNumber}/review', [ProjectController::class, 'reviewPhase'])->name('projects.phases.review');
+    Route::post('/projects/{project}/phases/{phaseNumber}/tasks', [ProjectController::class, 'createPhaseTask'])->name('projects.phases.tasks');
 
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
     Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
     Route::get('/tasks/attention-count', [TaskController::class, 'attentionCount'])->name('tasks.attention_count');
+    Route::post('/tasks/{task}/accept', [TaskController::class, 'accept'])->name('tasks.accept');
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
 
     Route::get('/messages', [MessageController::class, 'index'])->name('messages');
     Route::get('/messages/chats', [MessageController::class, 'getChats']);
     Route::get('/messages/{type}/{id}', [MessageController::class, 'getMessages']);
     Route::post('/messages', [MessageController::class, 'send'])->name('messages.send');
 
-    Route::get('/reports', function () {
-        return view('analytics.index');
-    })->name('reports');
+    Route::get('/reports', [AnalyticsController::class, 'index'])->name('reports');
 
     Route::get('/evaluation', [\App\Http\Controllers\PeerEvaluationController::class, 'index'])->name('evaluation');
     Route::post('/evaluation', [\App\Http\Controllers\PeerEvaluationController::class, 'store'])->name('evaluation.store');
 
-    Route::get('/supervisor', function () {
-        return view('supervisor.index');
-    })->name('supervisor');
+    Route::get('/supervisor', [SupervisorController::class, 'index'])->name('supervisor');
 
     Route::get('/admin', [AdminController::class, 'control'])->name('admin');
     Route::post('/admin/control', [AdminController::class, 'updateControl'])->name('admin.control.update');
