@@ -11,6 +11,30 @@ use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
+    private function previewFromMessage(?Message $m): string
+    {
+        if (!$m) {
+            return '';
+        }
+
+        $text = trim((string) ($m->content ?? ''));
+        if ($text === '' && !empty($m->attachments)) {
+            $text = 'Attachment';
+        }
+        if ($text === '') {
+            $text = '—';
+        }
+
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+        $text = trim($text);
+
+        if (mb_strlen($text) > 46) {
+            $text = mb_substr($text, 0, 46) . '…';
+        }
+
+        return $text;
+    }
+
     private function getPrivateChatPartnerIds(int $userId)
     {
         return Message::query()
@@ -34,6 +58,9 @@ class MessageController extends Controller
         $user = Auth::user();
         $groups = collect();
         $users = collect();
+        $students = collect();
+        $supervisors = collect();
+        $isAdmin = false;
         
         if ($user->hasRole('student')) {
             // Student: Only their own group
@@ -80,15 +107,9 @@ class MessageController extends Controller
         } elseif ($user->hasRole('admin')) {
             // Admin: Separate lists for Students, Supervisors, and Groups
             $groups = Group::with('members.user', 'supervisor')->get();
-            
             $students = User::role('student')->get();
             $supervisors = User::role('supervisor')->get();
-            
-            return response()->json([
-                'groups' => $groups,
-                'students' => $students,
-                'supervisors' => $supervisors
-            ]);
+            $isAdmin = true;
         } else {
             // Others: Existing logic (all groups and existing private chats)
             $memberGroups = $user->groupMemberships()->with('group')->get()->pluck('group');
@@ -101,9 +122,110 @@ class MessageController extends Controller
                 : collect();
         }
 
+        $userId = (int) $user->id;
+
+        if ($isAdmin) {
+            $groups = $groups->map(function ($g) use ($userId) {
+                $last = Message::query()
+                    ->where('group_id', $g->id)
+                    ->latest('id')
+                    ->first();
+
+                $g->last_message_preview = $this->previewFromMessage($last);
+                $g->last_message_at = $last?->created_at?->toIso8601String();
+                $g->unread_count = Message::query()
+                    ->where('group_id', $g->id)
+                    ->where('sender_id', '!=', $userId)
+                    ->where('is_read', false)
+                    ->count();
+                $g->last_message_sort = $last?->created_at?->timestamp ?? 0;
+                return $g;
+            })->sortByDesc('last_message_sort')->values();
+
+            $students = $students->map(function ($u) use ($userId) {
+                $last = Message::query()
+                    ->betweenUsers($userId, (int) $u->id)
+                    ->whereNull('group_id')
+                    ->latest('id')
+                    ->first();
+
+                $u->last_message_preview = $this->previewFromMessage($last);
+                $u->last_message_at = $last?->created_at?->toIso8601String();
+                $u->unread_count = Message::query()
+                    ->whereNull('group_id')
+                    ->where('sender_id', (int) $u->id)
+                    ->where('receiver_id', $userId)
+                    ->where('is_read', false)
+                    ->count();
+                $u->last_message_sort = $last?->created_at?->timestamp ?? 0;
+                return $u;
+            })->sortByDesc('last_message_sort')->values();
+
+            $supervisors = $supervisors->map(function ($u) use ($userId) {
+                $last = Message::query()
+                    ->betweenUsers($userId, (int) $u->id)
+                    ->whereNull('group_id')
+                    ->latest('id')
+                    ->first();
+
+                $u->last_message_preview = $this->previewFromMessage($last);
+                $u->last_message_at = $last?->created_at?->toIso8601String();
+                $u->unread_count = Message::query()
+                    ->whereNull('group_id')
+                    ->where('sender_id', (int) $u->id)
+                    ->where('receiver_id', $userId)
+                    ->where('is_read', false)
+                    ->count();
+                $u->last_message_sort = $last?->created_at?->timestamp ?? 0;
+                return $u;
+            })->sortByDesc('last_message_sort')->values();
+
+            return response()->json([
+                'groups' => $groups,
+                'students' => $students,
+                'supervisors' => $supervisors,
+            ]);
+        }
+
+        $groups = $groups->values()->map(function ($g) use ($userId) {
+            $last = Message::query()
+                ->where('group_id', $g->id)
+                ->latest('id')
+                ->first();
+
+            $g->last_message_preview = $this->previewFromMessage($last);
+            $g->last_message_at = $last?->created_at?->toIso8601String();
+            $g->unread_count = Message::query()
+                ->where('group_id', $g->id)
+                ->where('sender_id', '!=', $userId)
+                ->where('is_read', false)
+                ->count();
+            $g->last_message_sort = $last?->created_at?->timestamp ?? 0;
+            return $g;
+        })->sortByDesc('last_message_sort')->values();
+
+        $users = $users->unique('id')->values()->map(function ($u) use ($userId) {
+            $last = Message::query()
+                ->betweenUsers($userId, (int) $u->id)
+                ->whereNull('group_id')
+                ->latest('id')
+                ->first();
+
+            $u->last_message_preview = $this->previewFromMessage($last);
+            $u->last_message_at = $last?->created_at?->toIso8601String();
+            $u->unread_count = Message::query()
+                ->whereNull('group_id')
+                ->where('sender_id', (int) $u->id)
+                ->where('receiver_id', $userId)
+                ->where('is_read', false)
+                ->count();
+            $u->last_message_sort = $last?->created_at?->timestamp ?? 0;
+            return $u;
+        })->sortByDesc('last_message_sort')->values();
+
         return response()->json([
-            'groups' => $groups->values(),
-            'users' => $users->unique('id')->values()
+            'groups' => $groups,
+            'users' => $users,
         ]);
     }
 
@@ -129,6 +251,21 @@ class MessageController extends Controller
             $query->where('group_id', $id);
         } else {
             $query->betweenUsers($user->id, $id)->whereNull('group_id');
+        }
+
+        if ($type === 'group') {
+            Message::query()
+                ->where('group_id', $id)
+                ->where('sender_id', '!=', (int) $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        } else {
+            Message::query()
+                ->whereNull('group_id')
+                ->where('sender_id', (int) $id)
+                ->where('receiver_id', (int) $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
         }
 
         if ($sinceId) {

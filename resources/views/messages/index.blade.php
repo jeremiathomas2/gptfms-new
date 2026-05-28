@@ -18,6 +18,8 @@
         height: 100%; 
     }
     .page.active { display: flex; }
+    .chat-item.has-unread .chat-name { font-weight: 900; }
+    .unread-pill{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.35);color:var(--primary);font-weight:900;font-size:11px;line-height:1}
 </style>
 @endpush
 
@@ -245,27 +247,42 @@
         // If it's admin data (has students/supervisors keys)
         if (allChatData.students || allChatData.supervisors) {
             if (currentFilter === 'groups') {
-                allChatData.groups.filter(g => g.name.toLowerCase().includes(searchTerm)).forEach(group => {
+                allChatData.groups
+                    .filter(g => g.name.toLowerCase().includes(searchTerm))
+                    .sort((a, b) => (Number(b.last_message_sort || 0) - Number(a.last_message_sort || 0)))
+                    .forEach(group => {
                     const initials = group.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
+                    const preview = group.last_message_preview || 'Group Chat';
+                    const unread = Number(group.unread_count || 0);
+                    const item = createChatItem('group', group.id, group.name, preview, initials, '', false, unread);
                     chatList.appendChild(item);
                     if (autoType === 'group' && autoId == group.id) {
                         targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item, isOnline: false };
                     }
                 });
             } else if (currentFilter === 'students') {
-                allChatData.students.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
+                allChatData.students
+                    .filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm))
+                    .sort((a, b) => (Number(b.last_message_sort || 0) - Number(a.last_message_sort || 0)))
+                    .forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('private', user.id, user.name, 'Student', initials, '', user.is_online);
+                    const preview = user.last_message_preview || 'Private Message';
+                    const unread = Number(user.unread_count || 0);
+                    const item = createChatItem('private', user.id, user.name, preview, initials, '', user.is_online, unread);
                     chatList.appendChild(item);
                     if (autoType === 'private' && autoId == user.id) {
                         targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
                     }
                 });
             } else if (currentFilter === 'supervisors') {
-                allChatData.supervisors.filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)).forEach(user => {
+                allChatData.supervisors
+                    .filter(u => u.name.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm))
+                    .sort((a, b) => (Number(b.last_message_sort || 0) - Number(a.last_message_sort || 0)))
+                    .forEach(user => {
                     const initials = user.initials || user.name.substring(0, 2).toUpperCase();
-                    const item = createChatItem('private', user.id, user.name, 'Supervisor', initials, '', user.is_online);
+                    const preview = user.last_message_preview || 'Private Message';
+                    const unread = Number(user.unread_count || 0);
+                    const item = createChatItem('private', user.id, user.name, preview, initials, '', user.is_online, unread);
                     chatList.appendChild(item);
                     if (autoType === 'private' && autoId == user.id) {
                         targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
@@ -282,26 +299,43 @@
                 return;
             }
 
-            // Add Groups
+            const combined = [];
             filteredGroups.forEach(group => {
-                const initials = group.name.substring(0, 2).toUpperCase();
-                const item = createChatItem('group', group.id, group.name, 'Group Chat', initials);
-                chatList.appendChild(item);
-                
-                if (autoType === 'group' && autoId == group.id) {
-                    targetItem = { type: 'group', id: group.id, name: group.name, initials: initials, element: item, isOnline: false };
-                }
+                combined.push({
+                    type: 'group',
+                    id: group.id,
+                    name: group.name,
+                    initials: group.name.substring(0, 2).toUpperCase(),
+                    isOnline: false,
+                    badge: '',
+                    preview: group.last_message_preview || 'Group Chat',
+                    unread: Number(group.unread_count || 0),
+                    sort: Number(group.last_message_sort || 0),
+                });
             });
 
-            // Add Private Chats
             filteredUsers.forEach(user => {
-                const initials = user.initials || user.name.substring(0, 2).toUpperCase();
                 const groupBadge = user.group_name ? `<span class="badge badge-blue" style="font-size: 9px; margin-left: 5px; padding: 2px 5px;">${user.group_name}</span>` : '';
-                const item = createChatItem('private', user.id, user.name, 'Private Message', initials, groupBadge, user.is_online);
+                combined.push({
+                    type: 'private',
+                    id: user.id,
+                    name: user.name,
+                    initials: (user.initials || user.name.substring(0, 2).toUpperCase()),
+                    isOnline: !!user.is_online,
+                    badge: groupBadge,
+                    preview: user.last_message_preview || 'Private Message',
+                    unread: Number(user.unread_count || 0),
+                    sort: Number(user.last_message_sort || 0),
+                });
+            });
+
+            combined.sort((a, b) => b.sort - a.sort);
+            combined.forEach(itemData => {
+                const item = createChatItem(itemData.type, itemData.id, itemData.name, itemData.preview, itemData.initials, itemData.badge, itemData.isOnline, itemData.unread);
                 chatList.appendChild(item);
 
-                if (autoType === 'private' && autoId == user.id) {
-                    targetItem = { type: 'private', id: user.id, name: user.name, initials: initials, element: item, isOnline: user.is_online };
+                if (autoType === itemData.type && autoId == itemData.id) {
+                    targetItem = { type: itemData.type, id: itemData.id, name: itemData.name, initials: itemData.initials, element: item, isOnline: itemData.isOnline };
                 }
             });
         }
@@ -319,14 +353,20 @@
         renderChatList();
     }
 
-    function createChatItem(type, id, name, preview, initials, badge = '', isOnline = false) {
+    function createChatItem(type, id, name, preview, initials, badge = '', isOnline = false, unreadCount = 0) {
         const div = document.createElement('div');
         div.className = 'chat-item';
         if (activeChat && activeChat.type === type && activeChat.id === id) {
             div.classList.add('active');
         }
+        if (Number(unreadCount || 0) > 0) {
+            div.classList.add('has-unread');
+        }
         
         div.onclick = (e) => selectChat(type, id, name, initials, div, isOnline);
+
+        const unread = Number(unreadCount || 0);
+        const unreadHtml = unread > 0 ? `<span class="unread-pill" title="Unread">${unread > 9 ? '9+' : unread}</span>` : '';
         
         div.innerHTML = `
             <div class="chat-av" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">
@@ -334,8 +374,11 @@
                 <div class="online-dot ${isOnline ? 'active' : ''}"></div>
             </div>
             <div>
-                <div class="chat-name">${name}${badge}</div>
-                <div class="chat-preview">${preview}</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <div class="chat-name">${name}${badge}</div>
+                    ${unreadHtml}
+                </div>
+                <div class="chat-preview">${preview || '—'}</div>
             </div>
         `;
         return div;
@@ -349,6 +392,9 @@
         document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
         if (element) {
             element.classList.add('active');
+            element.classList.remove('has-unread');
+            const pill = element.querySelector('.unread-pill');
+            if (pill) pill.remove();
         } else {
             const items = document.querySelectorAll('.chat-item');
             items.forEach(item => {
@@ -378,6 +424,7 @@
         document.getElementById('chat-messages').innerHTML = '<div style="display: flex; justify-content: center; padding: 40px;"><div class="spinner"></div></div>';
         
         loadMessages(true);
+        setTimeout(() => loadChats(), 600);
         
         if (refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(() => loadMessages(false), 2000); 
@@ -523,6 +570,7 @@
         })
         .then(message => {
             loadMessages(); // Trigger update to replace optimistic msg
+            loadChats(activeChat.type, activeChat.id);
         })
         .catch(error => {
             console.error('Error sending message:', error);
