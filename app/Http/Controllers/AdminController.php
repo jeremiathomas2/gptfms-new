@@ -380,6 +380,26 @@ class AdminController extends Controller
         return back()->with('status', 'Queue worker start command issued.');
     }
 
+    public function clearPendingJobs()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $count = DB::table('jobs')->count();
+        DB::table('jobs')->truncate();
+
+        return back()->with('status', "Cleared pending jobs: {$count}.");
+    }
+
+    public function clearFailedJobs()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $count = DB::table('failed_jobs')->count();
+        DB::table('failed_jobs')->truncate();
+
+        return back()->with('status', "Cleared failed jobs: {$count}.");
+    }
+
     public function users()
     {
         $users = User::with(['roles', 'members.group'])->paginate(10);

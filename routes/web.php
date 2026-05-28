@@ -68,6 +68,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/control/cache-clear', [AdminController::class, 'clearSystemCache'])->name('admin.control.cache_clear');
     Route::post('/admin/control/process-queue', [AdminController::class, 'processQueueNow'])->name('admin.control.process_queue');
     Route::post('/admin/control/start-queue-worker', [AdminController::class, 'startQueueWorker'])->name('admin.control.start_queue_worker');
+    Route::post('/admin/control/clear-pending-jobs', [AdminController::class, 'clearPendingJobs'])->name('admin.control.clear_pending_jobs');
+    Route::post('/admin/control/clear-failed-jobs', [AdminController::class, 'clearFailedJobs'])->name('admin.control.clear_failed_jobs');
     Route::get('/admin/users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show');
     Route::post('/admin/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::post('/admin/users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('admin.users.reset_password');

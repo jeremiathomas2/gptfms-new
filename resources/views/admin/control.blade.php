@@ -116,6 +116,14 @@
                     @csrf
                     <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-play me-1"></i> Process Queue Now</button>
                 </form>
+                <form method="POST" action="{{ route('admin.control.clear_pending_jobs') }}">
+                    @csrf
+                    <button class="btn btn-outline btn-sm" type="submit"><i class="uil uil-trash-alt me-1"></i> Clear Pending</button>
+                </form>
+                <form method="POST" action="{{ route('admin.control.clear_failed_jobs') }}">
+                    @csrf
+                    <button class="btn btn-outline btn-sm" type="submit"><i class="uil uil-trash-alt me-1"></i> Clear Failed</button>
+                </form>
             </div>
         </div>
 
