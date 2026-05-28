@@ -20,6 +20,7 @@
     $isStudent = $mode === 'student';
     $isSupervisor = $mode === 'supervisor';
     $isAdmin = $mode === 'admin';
+    $isLeader = (bool) ($isLeader ?? false);
 
     $displayPhases = $phases;
     if (($displayPhases?->count() ?? 0) === 0) {
@@ -127,7 +128,7 @@
                         if ($phase->status === 'submitted') $badge = 'badge-blue';
                         if ($phase->status === 'changes_requested') $badge = 'badge-amber';
 
-                        $canStudentSubmit = $isStudent && $project && !$locked && $phase->status !== 'approved';
+                        $canStudentSubmit = $isStudent && $isLeader && $project && !$locked && $phase->status !== 'approved';
                         $canSupervisorReview = $project && ($isSupervisor || $isAdmin) && in_array($phase->status, ['submitted', 'changes_requested'], true);
                     @endphp
                         <div class="card" style="padding:16px" id="phase-card-{{ $n }}">
@@ -169,6 +170,13 @@
                                 <div class="card" style="padding:12px;border:1px solid var(--border);box-shadow:none;margin-bottom:10px;background:rgba(37,99,235,.06)">
                                     <div style="font-weight:800;margin-bottom:6px"><i class="uil uil-comment-alt-lines me-1"></i> Supervisor Notes</div>
                                     <div style="white-space:pre-wrap;color:var(--text);line-height:1.55">{{ $phase->supervisor_notes }}</div>
+                                </div>
+                            @endif
+
+                            @if($isStudent && $project && !$isLeader)
+                                <div class="card" style="padding:12px;border:1px dashed var(--border);box-shadow:none;margin-bottom:10px">
+                                    <div style="font-weight:800;margin-bottom:4px">View only</div>
+                                    <div style="color:var(--text-muted)">Only the group leader can submit phases for approval.</div>
                                 </div>
                             @endif
 

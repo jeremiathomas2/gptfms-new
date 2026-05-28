@@ -22,6 +22,7 @@ class ProjectController extends Controller
             $membership = $user->activeGroup()->with('group.project', 'group.supervisor', 'group.activeMembers.user')->first();
             $group = $membership?->group;
             $project = $group?->project;
+            $isLeader = $membership && $membership->role === 'leader';
             if (!$project && $group) {
                 $project = Project::query()->where('group_id', $group->id)->first();
                 if ($project && !$group->project_id) {
@@ -94,6 +95,7 @@ class ProjectController extends Controller
                 'phases' => $phases,
                 'phaseMap' => $phaseMap,
                 'tasks' => $tasks,
+                'isLeader' => $isLeader,
             ]);
         }
 
@@ -176,12 +178,14 @@ class ProjectController extends Controller
     public function show(Project $project)
     {
         $user = Auth::user();
+        $isLeader = false;
 
         if ($user->hasRole('student')) {
             $membership = $user->activeGroup()->with('group')->first();
             if (!$membership || (int) $membership->group_id !== (int) $project->group_id) {
                 abort(403);
             }
+            $isLeader = $membership->role === 'leader';
         }
 
         if ($user->hasRole('supervisor') && (int) $project->supervisor_id !== (int) $user->id) {
@@ -205,7 +209,7 @@ class ProjectController extends Controller
             ? $project->group->activeMembers->pluck('user')->filter()->values()
             : collect();
 
-        return view('projects.show', compact('mode', 'project', 'phases', 'phaseMap', 'tasks', 'members'));
+        return view('projects.show', compact('mode', 'project', 'phases', 'phaseMap', 'tasks', 'members', 'isLeader'));
     }
 
     public function submitPhase(Request $request, Project $project, int $phaseNumber)
@@ -216,6 +220,9 @@ class ProjectController extends Controller
         $membership = $user->activeGroup()->first();
         if (!$membership || (int) $membership->group_id !== (int) $project->group_id) {
             abort(403);
+        }
+        if ($membership->role !== 'leader') {
+            return response()->json(['message' => 'Only the group leader can submit phases.'], 403);
         }
 
         if (!array_key_exists($phaseNumber, Project::PHASES)) {
