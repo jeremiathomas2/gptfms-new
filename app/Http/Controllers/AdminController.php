@@ -310,6 +310,29 @@ class AdminController extends Controller
         return back()->with('status', "SMS queued to {$queued} recipient(s).");
     }
 
+    public function testSms(Request $request)
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        if (!SystemSetting::getBool('notify.sms_enabled', true)) {
+            return back()->withErrors(['sms_test' => 'SMS sending is disabled by the administrator.']);
+        }
+
+        $validated = $request->validate([
+            'phone' => 'required|string|max:32',
+            'message' => 'required|string|max:480',
+        ]);
+
+        $service = new NextSmsService();
+        $ok = $service->sendSms($validated['phone'], $validated['message']);
+
+        if (!$ok) {
+            return back()->withErrors(['sms_test' => 'Failed to send SMS. Check NextSMS configuration and logs.']);
+        }
+
+        return back()->with('status', 'Test SMS sent successfully.');
+    }
+
     public function clearSystemCache()
     {
         abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
@@ -337,6 +360,24 @@ class AdminController extends Controller
         $processed = max(0, $before - $after);
 
         return back()->with('status', "Queue processed. Jobs handled: {$processed}. Remaining: {$after}.");
+    }
+
+    public function startQueueWorker()
+    {
+        abort_unless(auth()->user() && auth()->user()->hasRole('admin'), 403);
+
+        $php = PHP_BINARY;
+        $artisan = base_path('artisan');
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $cmd = 'start "" /B "' . $php . '" "' . $artisan . '" queue:work --sleep=2 --tries=3 --timeout=120';
+            @pclose(@popen($cmd, 'r'));
+        } else {
+            $cmd = 'nohup "' . $php . '" "' . $artisan . '" queue:work --sleep=2 --tries=3 --timeout=120 > /dev/null 2>&1 &';
+            @exec($cmd);
+        }
+
+        return back()->with('status', 'Queue worker start command issued.');
     }
 
     public function users()

@@ -107,10 +107,16 @@
                 <span class="badge {{ ((int) ($failedJobs ?? 0)) > 0 ? 'badge-red' : 'badge-green' }}"><i class="uil uil-bug me-1"></i> Failed jobs: {{ (int) ($failedJobs ?? 0) }}</span>
             </div>
 
-            <form method="POST" action="{{ route('admin.control.process_queue') }}">
-                @csrf
-                <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-play me-1"></i> Process Queue Now</button>
-            </form>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <form method="POST" action="{{ route('admin.control.start_queue_worker') }}">
+                    @csrf
+                    <button class="btn btn-outline btn-sm" type="submit"><i class="uil uil-rocket me-1"></i> Start Queue Worker</button>
+                </form>
+                <form method="POST" action="{{ route('admin.control.process_queue') }}">
+                    @csrf
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-play me-1"></i> Process Queue Now</button>
+                </form>
+            </div>
         </div>
 
         <div class="card" style="padding:16px">
@@ -160,6 +166,26 @@
                     <textarea class="form-control" name="message" required rows="4" maxlength="480" placeholder="Write your SMS (max 480 chars)"></textarea>
                 </div>
                 <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-message me-1"></i> Send SMS</button>
+            </form>
+        </div>
+
+        <div class="card" style="padding:16px">
+            <div style="font-weight:900;font-size:15px;margin-bottom:6px">Test SMS</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">
+                Send a test message to any number format: 255XXXXXXXXX, 0XXXXXXXXX, or XXXXXXXXX.
+            </div>
+
+            <form method="POST" action="{{ route('admin.control.sms_test') }}">
+                @csrf
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input class="form-control" name="phone" required maxlength="32" placeholder="e.g. 0612876654 or 255612876654">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <textarea class="form-control" name="message" required rows="4" maxlength="480" placeholder="Type your test SMS (max 480 chars)"></textarea>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="uil uil-comment-alt-message me-1"></i> Send Test SMS</button>
             </form>
         </div>
 
