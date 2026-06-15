@@ -515,14 +515,18 @@
         .then(user => {
             const roleName = user.roles[0]?.name || 'User';
             const badgeClass = roleName === 'admin' ? 'badge-red' : (roleName === 'supervisor' ? 'badge-amber' : 'badge-blue');
+            const surveyedTitle = roleName === 'supervisor' ? 'Professionalism' : 'Technical Skills';
+            const surveyedBadgeStyle = roleName === 'supervisor'
+                ? 'background: rgba(245,158,11,0.10); color: #b45309; border: 1px solid rgba(245,158,11,0.25)'
+                : 'background: rgba(37,99,235,0.1); color: var(--primary); border: 1px solid rgba(37,99,235,0.2)';
             
             let skillsHtml = '';
             if (user.surveyed_skills && user.surveyed_skills.length > 0) {
                 skillsHtml = `
                     <div style="margin-top: 20px;">
-                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">Technical Skills</div>
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;">${surveyedTitle}</div>
                         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                            ${user.surveyed_skills.map(s => `<span class="badge" style="background: rgba(37,99,235,0.1); color: var(--primary); border: 1px solid rgba(37,99,235,0.2)">${s.name} (${s.level})</span>`).join('')}
+                            ${user.surveyed_skills.map(s => `<span class="badge" style="${surveyedBadgeStyle}">${s.name} (${s.level})</span>`).join('')}
                         </div>
                     </div>
                 `;

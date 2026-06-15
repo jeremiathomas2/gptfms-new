@@ -188,6 +188,12 @@ class UserImportController extends Controller
                 ]);
 
                 $user->assignRole($type);
+                if ($type === 'supervisor') {
+                    $user->supervisorProfile()->firstOrCreate(
+                        ['user_id' => $user->id],
+                        ['is_available' => true]
+                    );
+                }
                 $createdUsers[] = [$user, $password, $type];
 
                 $count++;

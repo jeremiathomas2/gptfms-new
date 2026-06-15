@@ -72,6 +72,11 @@ class Group extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(GroupAttendance::class)->orderByDesc('meeting_date')->orderByDesc('meeting_number');
+    }
+
     // Helper methods
     public function getCurrentMemberCount(): int
     {

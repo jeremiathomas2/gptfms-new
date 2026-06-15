@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Group;
+use App\Models\GroupAttendance;
 use App\Models\GroupMember;
 use App\Models\Project;
 use App\Models\ProjectPhase;
@@ -25,6 +26,12 @@ class AnalyticsController extends Controller
             $activeProjectCount = Project::active()->count();
             $completedTaskCount = Task::query()->where('status', 'completed')->count();
             $avgProgress = (int) round((float) Project::query()->avg('progress_percentage'));
+            $attendanceMeetingCount = GroupAttendance::query()->count();
+            $groupsMeetingMinimum = Group::query()
+                ->withCount('attendanceRecords')
+                ->get()
+                ->filter(fn ($group) => (int) $group->attendance_records_count >= GroupAttendance::MINIMUM_REQUIRED_MEETINGS)
+                ->count();
 
             $phaseCounts = ProjectPhase::query()
                 ->select('status', DB::raw('COUNT(*) as c'))
@@ -46,6 +53,8 @@ class AnalyticsController extends Controller
                 'activeProjectCount' => $activeProjectCount,
                 'completedTaskCount' => $completedTaskCount,
                 'avgProgress' => $avgProgress,
+                'attendanceMeetingCount' => $attendanceMeetingCount,
+                'groupsMeetingMinimum' => $groupsMeetingMinimum,
                 'phaseCounts' => $phaseCounts,
                 'skillCounts' => $skillCounts,
                 'projects' => $projects,
@@ -87,6 +96,45 @@ class AnalyticsController extends Controller
                 ->where('status', 'completed')
                 ->count();
 
+            $attendanceRecords = GroupAttendance::query()
+                ->whereIn('group_id', $groupIds)
+                ->with('group')
+                ->get();
+
+            $attendanceMeetingCount = $attendanceRecords->count();
+            $groupsMeetingMinimum = $groupIds->isNotEmpty()
+                ? Group::query()
+                    ->whereIn('id', $groupIds)
+                    ->withCount('attendanceRecords')
+                    ->get()
+                    ->filter(fn ($group) => (int) $group->attendance_records_count >= GroupAttendance::MINIMUM_REQUIRED_MEETINGS)
+                    ->count()
+                : 0;
+
+            $attendanceStatusCounts = collect([
+                'met_minimum' => 0,
+                'in_progress' => 0,
+                'no_meetings' => 0,
+            ]);
+
+            $attendanceByGroup = Group::query()
+                ->whereIn('id', $groupIds)
+                ->withCount('attendanceRecords')
+                ->orderBy('name')
+                ->get()
+                ->mapWithKeys(function ($group) use (&$attendanceStatusCounts) {
+                    $count = (int) $group->attendance_records_count;
+                    if ($count >= GroupAttendance::MINIMUM_REQUIRED_MEETINGS) {
+                        $attendanceStatusCounts['met_minimum']++;
+                    } elseif ($count === 0) {
+                        $attendanceStatusCounts['no_meetings']++;
+                    } else {
+                        $attendanceStatusCounts['in_progress']++;
+                    }
+
+                    return [$group->name => $count];
+                });
+
             $studentIds = GroupMember::query()
                 ->whereIn('group_id', $groupIds)
                 ->where('status', 'joined')
@@ -108,6 +156,10 @@ class AnalyticsController extends Controller
                 'pendingPhaseCount' => $pendingPhaseCount,
                 'completedTaskCount' => $completedTaskCount,
                 'avgProgress' => $avgProgress,
+                'attendanceMeetingCount' => $attendanceMeetingCount,
+                'groupsMeetingMinimum' => $groupsMeetingMinimum,
+                'attendanceStatusCounts' => $attendanceStatusCounts,
+                'attendanceByGroup' => $attendanceByGroup,
                 'skillCounts' => $skillCounts,
                 'phaseCounts' => $phaseCounts,
                 'taskCounts' => $taskCounts,
@@ -136,6 +188,10 @@ class AnalyticsController extends Controller
             ->groupBy('status')
             ->pluck('c', 'status');
 
+        $attendanceMeetingCount = $membership?->group
+            ? (int) GroupAttendance::query()->where('group_id', $membership->group_id)->count()
+            : 0;
+
         $currentPhase = null;
         $approvedPhases = 0;
         $phaseCounts = collect();
@@ -161,6 +217,7 @@ class AnalyticsController extends Controller
             'taskCompleted' => $taskCompleted,
             'approvedPhases' => $approvedPhases,
             'currentPhase' => $currentPhase,
+            'attendanceMeetingCount' => $attendanceMeetingCount,
             'skillCounts' => $skillCounts,
             'phaseCounts' => $phaseCounts,
             'taskCounts' => $taskCounts,
@@ -200,12 +257,17 @@ class AnalyticsController extends Controller
                     continue;
                 }
 
-                if (ctype_digit($str) && (int) $str > 0) {
-                    $idBag[] = (int) $str;
-                    $raw[] = (int) $str;
-                } else {
-                    $raw[] = $str;
+                if (ctype_digit($str)) {
+                    $id = (int) $str;
+                    if ($id <= 0) {
+                        continue;
+                    }
+                    $idBag[] = $id;
+                    $raw[] = $id;
+                    continue;
                 }
+
+                $raw[] = $str;
             }
         }
 

@@ -5,6 +5,12 @@
 @section('content')
 @php
     $user = auth()->user();
+    $studentSurveySkills = $user && $user->studentSkillsSurvey && is_array($user->studentSkillsSurvey->skills)
+        ? $user->studentSkillsSurvey->skills
+        : [];
+    $supervisorProfessionalism = $user && $user->supervisorProfile && is_array($user->supervisorProfile->specializations)
+        ? $user->supervisorProfile->specializations
+        : [];
 @endphp
 <div class="page active" id="page-settings">
     @if(!$user)
@@ -150,6 +156,52 @@
                     <div class="form-group"><label class="form-label">Bio</label><textarea name="bio" class="form-control" id="profile-bio" rows="3">{{ $user->bio ?? 'No bio set.' }}</textarea></div>
                     <button type="submit" class="btn btn-primary"><i class="uil uil-check me-1"></i> Save Profile</button>
                 </form>
+
+                @role('student')
+                <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+                        <div style="font-size:14px;font-weight:700">My Survey Skills</div>
+                        <a href="{{ route('survey.index') }}" class="btn btn-outline btn-sm"><i class="uil uil-clipboard-notes me-1"></i> Update Skills Survey</a>
+                    </div>
+                    @if(count($studentSurveySkills) > 0)
+                        <div style="display:flex;flex-wrap:wrap;gap:8px">
+                            @foreach($studentSurveySkills as $skill)
+                                <span class="badge" style="padding:6px 10px;background:rgba(37,99,235,.08);color:var(--primary);border:1px solid rgba(37,99,235,.18)">{{ $skill }}</span>
+                            @endforeach
+                        </div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
+                            Experience Level: {{ ucfirst($user->studentSkillsSurvey->experience_level ?? 'not specified') }}
+                        </div>
+                    @else
+                        <div style="padding:12px 14px;border:1px dashed var(--border);border-radius:12px;color:var(--text-muted)">
+                            No survey skills found yet. Complete your skills survey to display them here.
+                        </div>
+                    @endif
+                </div>
+                @endrole
+
+                @role('supervisor')
+                <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+                        <div style="font-size:14px;font-weight:700">My Professionalism</div>
+                        <a href="{{ route('survey.index') }}" class="btn btn-outline btn-sm"><i class="uil uil-clipboard-notes me-1"></i> Update Professionalism Survey</a>
+                    </div>
+                    @if(count($supervisorProfessionalism) > 0)
+                        <div style="display:flex;flex-wrap:wrap;gap:8px">
+                            @foreach($supervisorProfessionalism as $item)
+                                <span class="badge" style="padding:6px 10px;background:rgba(16,185,129,.08);color:var(--success);border:1px solid rgba(16,185,129,.18)">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
+                            Years of Experience: {{ (int) ($user->supervisorProfile->years_of_experience ?? 0) }}
+                        </div>
+                    @else
+                        <div style="padding:12px 14px;border:1px dashed var(--border);border-radius:12px;color:var(--text-muted)">
+                            No professionalism details found yet. Complete your professionalism survey to display them here.
+                        </div>
+                    @endif
+                </div>
+                @endrole
             </div>
 
             <!-- Notifications -->

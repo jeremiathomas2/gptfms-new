@@ -7,6 +7,101 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+# GPTFMS — User Menu & Role Guide
+
+This document explains the full system functionality, how to navigate the menus, and what each role (Admin / Supervisor / Student) is allowed to do.
+
+## Roles
+
+### Admin
+- Full system access.
+- Creates projects (one project per group) and assigns supervisors/groups.
+- Controls system settings (login/reset enable/disable, SMS/email enable/disable).
+- Manages queue tools (start worker, process now, clear pending/failed jobs).
+- Broadcasts Email/SMS and can send a Test SMS to any number format.
+
+### Supervisor
+- Sees only supervised groups/projects.
+- Reviews and approves/rejects student phase submissions.
+- Assigns tasks to students in their supervised groups.
+
+### Student
+- Sees only their group/project information.
+- Completes Skills Survey.
+- Uses Messages and Tasks.
+- **Project phases:** only the **Group Leader** can submit phases; other members are **view-only**.
+
+## Navigation (Side Menu)
+
+### Common (All authenticated users)
+- **Dashboard** (`/`) — role-based overview.
+- **Messages** (`/messages`) — group + private chat.
+- **Tasks** (`/tasks`) — kanban board (To do / In progress / Completed).
+- **Analytics** (`/reports`) — role-based charts and metrics.
+- **Settings** (`/settings`) — profile + security.
+
+### Student menu
+- **My Group** (`/my-group`) — your current group and members.
+- **Skills Survey** (`/survey`) — submit skills + interests (used in group formation).
+- **Project** (`/projects`) — 6-phase workflow page (single project per group).
+
+### Supervisor menu
+- **Supervisor Hub** (`/supervisor`) — reviews pending phases, project status, latest submissions.
+- **My Groups** (`/my-group`) — groups you supervise.
+- **Projects** (`/projects`) — supervised projects list and links to phase review.
+
+### Admin menu
+- **Admin Control** (`/admin`) — system controls + messaging + queue tools.
+- **Users** (`/users`) — user management and importing.
+- **Groups** (`/groups`) — group list and preview.
+- **Projects** (`/projects`) — create/assign projects (admin only).
+- **Group Settings** (`/groups/settings`) — group formation and settings.
+
+## Project (6 Stages / Phases)
+
+Project phases (in order):
+1. Project Title  
+2. Gather Requirement  
+3. Analysis  
+4. Designing  
+5. Development and Testing  
+6. Deployment  
+
+Rules:
+- Students can **view all phases** even before approval.
+- Only the **Group Leader** can **submit** a phase.
+- Supervisor/Admin can **Approve** or **Request Changes**.
+- A phase becomes “completed” only after **approval**.
+
+## Tasks
+
+Rules:
+- Admin/Supervisor can create tasks and assign to students.
+- Students cannot create tasks.
+- Students can:
+  - **Preview** task details.
+  - **Accept** (moves from `todo` → `in_progress`).
+  - **Mark as Readed** (moves to `completed`).
+
+## Messages
+
+Features:
+- Group and private chats.
+- Unread indicator on chat list:
+  - Unread badge appears when new messages arrive.
+  - Badge disappears after opening the chat (messages are marked as read).
+- New/latest messages move the chat to the top of the list.
+
+## Admin Control (Operations)
+
+Admin Control page (`/admin`) includes:
+- Toggles: enable/disable Login, Password Reset, Registration.
+- Toggles: enable/disable Email sending and SMS sending.
+- Queue tools: Start Queue Worker, Process Queue Now, Clear Pending, Clear Failed.
+- Messaging tools: Broadcast Email, Broadcast SMS, Test SMS (enter any number format).
+
+Note: In production hosting, queue workers must run continuously for queued SMS/Email sending.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

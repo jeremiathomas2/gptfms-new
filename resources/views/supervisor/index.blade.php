@@ -7,6 +7,7 @@
     <div class="section-header">
         <div><div class="section-title">Supervisor Hub</div><div class="section-sub">Review phase submissions, assign tasks, and track progress across your groups</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-outline btn-sm" href="{{ route('attendance') }}"><i class="uil uil-calendar-alt me-1"></i> Attendance</a>
             <a class="btn btn-outline btn-sm" href="{{ route('projects') }}"><i class="uil uil-folder me-1"></i> Projects</a>
             <a class="btn btn-primary btn-sm" href="{{ route('tasks') }}"><i class="uil uil-check-circle me-1"></i> Tasks</a>
         </div>

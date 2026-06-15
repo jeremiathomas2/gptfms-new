@@ -11,7 +11,7 @@ class ProfileController extends Controller
 {
     public function settings()
     {
-        $user = Auth::user();
+        $user = Auth::user()?->load(['studentSkillsSurvey', 'supervisorProfile']);
         return view('profile.settings', compact('user'));
     }
 

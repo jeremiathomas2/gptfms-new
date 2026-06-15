@@ -499,6 +499,29 @@ class AdminController extends Controller
                 }
             }
         }
+        if ($user->supervisorProfile) {
+            $specializations = collect();
+
+            if (is_array($user->supervisorProfile->specializations)) {
+                $specializations = $specializations->merge($user->supervisorProfile->specializations);
+            } elseif (is_string($user->supervisorProfile->specializations) && $user->supervisorProfile->specializations !== '') {
+                $decoded = json_decode($user->supervisorProfile->specializations, true);
+                if (is_array($decoded)) {
+                    $specializations = $specializations->merge($decoded);
+                }
+            }
+
+            if (!empty($user->supervisorProfile->specialization)) {
+                $specializations->push($user->supervisorProfile->specialization);
+            }
+
+            foreach ($specializations->filter()->unique()->values() as $specialization) {
+                $surveyedSkills[] = [
+                    'name' => $specialization,
+                    'level' => 'Professionalism',
+                ];
+            }
+        }
         $user->surveyed_skills = $surveyedSkills;
         
         return response()->json($user);

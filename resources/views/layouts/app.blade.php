@@ -219,6 +219,9 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             <a href="{{ route('my_group') }}" class="nav-item {{ request()->routeIs('my_group') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-users-alt"></i></span><span class="nav-label">My Groups</span>
             </a>
+            <a href="{{ route('survey.index') }}" class="nav-item {{ request()->routeIs('survey.index') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-clipboard-notes"></i></span><span class="nav-label">Professionalism Survey</span>
+            </a>
             @endrole
 
             <div class="sidebar-section-label">Work</div>
@@ -235,6 +238,9 @@ document.getElementById('createGroupForm')?.addEventListener('submit', function(
             </a>
             <a href="{{ route('messages') }}" class="nav-item {{ request()->routeIs('messages') ? 'active' : '' }}">
                 <span class="nav-icon"><i class="uil uil-comment-dots"></i></span><span class="nav-label">Messages</span>
+            </a>
+            <a href="{{ route('attendance') }}" class="nav-item {{ request()->routeIs('attendance') ? 'active' : '' }}">
+                <span class="nav-icon"><i class="uil uil-calendar-alt"></i></span><span class="nav-label">Attendance</span>
             </a>
 
             <div class="sidebar-section-label">Insights</div>

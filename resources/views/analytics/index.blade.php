@@ -8,6 +8,7 @@
     .chart-card{grid-column:span 4;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
     .chart-card.wide{grid-column:span 8}
     @media (max-width: 1100px){.chart-card,.chart-card.wide{grid-column:1/-1}}
+    @media (max-width: 900px){.chart-shell{flex-direction:column;align-items:flex-start}}
     .chart-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
     .chart-title .label{font-weight:700}
     .chart-shell{display:flex;gap:14px;align-items:center}
@@ -21,6 +22,26 @@
     .chart-empty{color:var(--text-muted);padding:14px;border:1px dashed var(--border);border-radius:12px}
     .bar-svg{width:100%;height:auto}
     .chart-palette{--c1:#4f8cff;--c2:#22c55e;--c3:#f59e0b;--c4:#ef4444;--c5:#a855f7;--c6:#14b8a6}
+    .metric-note{font-size:12px;color:var(--text-muted)}
+    .chart-hero{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:16px;align-items:stretch}
+    .chart-side-metrics{display:grid;gap:10px}
+    .mini-metric{padding:12px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,rgba(79,140,255,.08),transparent)}
+    .mini-metric .k{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+    .mini-metric .v{font-size:22px;font-weight:800;color:var(--text);margin-top:4px}
+    .mini-metric .s{font-size:12px;color:var(--text-muted);margin-top:3px}
+    .line-wrap{display:grid;gap:10px}
+    .line-footer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .rank-list{display:grid;gap:10px}
+    .rank-row{display:grid;grid-template-columns:30px minmax(0,1fr) 54px;gap:10px;align-items:center}
+    .rank-num{width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(79,140,255,.12);color:var(--primary);font-size:12px;font-weight:800}
+    .rank-track{position:relative;height:34px;border-radius:12px;background:var(--bg-alt);border:1px solid var(--border);overflow:hidden}
+    .rank-fill{position:absolute;left:0;top:0;bottom:0;border-radius:12px}
+    .rank-name{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rank-value{text-align:right;font-size:13px;font-weight:700;color:var(--text)}
+    @media (max-width: 900px){
+        .chart-hero{grid-template-columns:1fr}
+        .line-footer{grid-template-columns:1fr}
+    }
 </style>
 @endpush
 
@@ -60,16 +81,10 @@
         </div>
 
         <div class="charts-grid chart-palette">
-            <div class="chart-card">
-                <div class="chart-title">
-                    <div class="label"><i class="uil uil-chart-pie me-2"></i> Phase Status</div>
-                    <div class="meta">{{ (int) (($phaseCounts ?? collect())->sum()) }}</div>
-                </div>
-                <div class="js-pie" data-data='@json(($phaseCounts ?? collect())->toArray())' data-kind="phases"></div>
-            </div>
             <div class="chart-card wide">
                 <div class="chart-title">
                     <div class="label"><i class="uil uil-chart-line me-2"></i> Project Progress</div>
+                    <div class="metric-note">Latest projects and their current completion level</div>
                 </div>
                 @php
                     $series = collect($projects ?? collect())
@@ -77,13 +92,49 @@
                         ->values()
                         ->map(fn ($p) => ['label' => (string) $p->title, 'value' => (int) round((float) $p->progress_percentage)]);
                 @endphp
-                <div class="js-line" data-series='@json($series)'></div>
+                @php
+                    $bestProject = collect($projects ?? collect())->sortByDesc('progress_percentage')->first();
+                    $avgProjectProgress = collect($projects ?? collect())->count() > 0 ? (int) round(collect($projects ?? collect())->avg('progress_percentage')) : 0;
+                    $completedProjects = collect($projects ?? collect())->where('status', 'completed')->count();
+                @endphp
+                <div class="chart-hero">
+                    <div class="line-wrap">
+                        <div class="js-line" data-series='@json($series)'></div>
+                        <div class="line-footer">
+                            <div class="mini-metric">
+                                <div class="k">Average Progress</div>
+                                <div class="v">{{ $avgProjectProgress }}%</div>
+                                <div class="s">Across shown projects</div>
+                            </div>
+                            <div class="mini-metric">
+                                <div class="k">Best Project</div>
+                                <div class="v">{{ $bestProject ? (int) round((float) $bestProject->progress_percentage) . '%' : '0%' }}</div>
+                                <div class="s">{{ $bestProject?->title ?? 'No project yet' }}</div>
+                            </div>
+                            <div class="mini-metric">
+                                <div class="k">Completed</div>
+                                <div class="v">{{ (int) $completedProjects }}</div>
+                                <div class="s">Projects fully delivered</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-side-metrics">
+                        @foreach(collect($projects ?? collect())->sortByDesc('progress_percentage')->take(3) as $p)
+                            <div class="mini-metric">
+                                <div class="k">{{ $p->group?->name ?? 'Project Group' }}</div>
+                                <div class="v">{{ (int) round((float) $p->progress_percentage) }}%</div>
+                                <div class="s">{{ $p->title }}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
             </div>
             <div class="chart-card">
                 <div class="chart-title">
-                    <div class="label"><i class="uil uil-lightbulb-alt me-2"></i> Top Skills</div>
+                    <div class="label"><i class="uil uil-chart-pie me-2"></i> Phase Status</div>
+                    <div class="meta">{{ (int) (($phaseCounts ?? collect())->sum()) }}</div>
                 </div>
-                <div class="js-bars" data-data='@json(($skillCounts ?? collect())->toArray())'></div>
+                <div class="js-pie" data-data='@json(($phaseCounts ?? collect())->toArray())' data-kind="phases"></div>
             </div>
         </div>
 
@@ -94,7 +145,7 @@
                     <table>
                         <thead><tr><th>Project</th><th>Group</th><th>Supervisor</th><th>Status</th><th>Progress</th></tr></thead>
                         <tbody>
-                        @foreach(($projects ?? collect()) as $p)
+                        @forelse(($projects ?? collect()) as $p)
                             <tr>
                                 <td><a href="{{ route('projects.show', $p) }}"><strong>{{ $p->title }}</strong></a></td>
                                 <td>{{ $p->group?->name ?? '—' }}</td>
@@ -104,16 +155,20 @@
                                     <div class="progress-bar" style="width:140px">
                                         <div class="progress-fill" style="width:{{ (float) $p->progress_percentage }}%"></div>
                                     </div>
+                                    <div class="metric-note" style="margin-top:6px">{{ (int) round((float) $p->progress_percentage) }}%</div>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr><td colspan="5" style="color:var(--text-muted)">No projects available yet.</td></tr>
+                        @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
             <div class="card" style="padding:18px">
-                <div class="section-title" style="font-size:15px;margin-bottom:12px"><i class="uil uil-chart-pie me-2"></i> Phase Breakdown</div>
-                <div class="js-pie" data-data='@json(($phaseCounts ?? collect())->toArray())' data-kind="phases"></div>
+                <div class="section-title" style="font-size:15px;margin-bottom:12px"><i class="uil uil-lightbulb-alt me-2"></i> Top Skills</div>
+                <div class="metric-note" style="margin-bottom:12px">Most common submitted student skills across the system.</div>
+                <div class="js-bars" data-data='@json(($skillCounts ?? collect())->toArray())'></div>
             </div>
         </div>
 
@@ -123,6 +178,8 @@
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">My Projects</div><div class="stat-value">{{ (int) ($projectCount ?? 0) }}</div></div><div class="stat-icon si-green"><i class="uil uil-folder"></i></div></div></div>
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Pending Phase Reviews</div><div class="stat-value">{{ (int) ($pendingPhaseCount ?? 0) }}</div></div><div class="stat-icon si-amber"><i class="uil uil-clipboard-notes"></i></div></div></div>
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Avg. Progress</div><div class="stat-value">{{ (int) ($avgProgress ?? 0) }}%</div></div><div class="stat-icon si-red"><i class="uil uil-analytics"></i></div></div></div>
+            <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Physical Meetings</div><div class="stat-value">{{ (int) ($attendanceMeetingCount ?? 0) }}</div></div><div class="stat-icon si-blue"><i class="uil uil-calendar-alt"></i></div></div></div>
+            <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Groups Met Minimum</div><div class="stat-value">{{ (int) ($groupsMeetingMinimum ?? 0) }}</div><div class="stat-change up"><i class="uil uil-check-circle"></i> 5 meetings target</div></div><div class="stat-icon si-green"><i class="uil uil-check-circle"></i></div></div></div>
         </div>
 
         <div class="charts-grid chart-palette">
@@ -140,6 +197,13 @@
                 </div>
                 <div class="js-pie" data-data='@json(($taskCounts ?? collect())->toArray())' data-kind="tasks"></div>
             </div>
+            <div class="chart-card">
+                <div class="chart-title">
+                    <div class="label"><i class="uil uil-chart-pie me-2"></i> Attendance Target</div>
+                    <div class="meta">{{ (int) (($attendanceStatusCounts ?? collect())->sum()) }}</div>
+                </div>
+                <div class="js-pie" data-data='@json(($attendanceStatusCounts ?? collect())->toArray())' data-kind="attendance"></div>
+            </div>
             <div class="chart-card wide">
                 <div class="chart-title">
                     <div class="label"><i class="uil uil-chart-line me-2"></i> Project Progress</div>
@@ -157,6 +221,12 @@
                     <div class="label"><i class="uil uil-lightbulb-alt me-2"></i> Top Skills</div>
                 </div>
                 <div class="js-bars" data-data='@json(($skillCounts ?? collect())->toArray())'></div>
+            </div>
+            <div class="chart-card wide">
+                <div class="chart-title">
+                    <div class="label"><i class="uil uil-chart-bar me-2"></i> Attendance By Group</div>
+                </div>
+                <div class="js-bars" data-data='@json(($attendanceByGroup ?? collect())->toArray())'></div>
             </div>
         </div>
 
@@ -192,6 +262,7 @@
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Approved Phases</div><div class="stat-value">{{ (int) ($approvedPhases ?? 0) }}/6</div></div><div class="stat-icon si-blue"><i class="uil uil-steps"></i></div></div></div>
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Tasks Need Attention</div><div class="stat-value">{{ (int) ($taskAttention ?? 0) }}</div></div><div class="stat-icon si-amber"><i class="uil uil-clipboard-notes"></i></div></div></div>
             <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Tasks Completed</div><div class="stat-value">{{ (int) ($taskCompleted ?? 0) }}</div></div><div class="stat-icon si-red"><i class="uil uil-check-circle"></i></div></div></div>
+            <div class="card"><div class="stat-card"><div class="stat-info"><div class="stat-label">Physical Meetings</div><div class="stat-value">{{ (int) ($attendanceMeetingCount ?? 0) }}</div><div class="stat-change up"><i class="uil uil-calendar-alt"></i> Supervisor meetings</div></div><div class="stat-icon si-green"><i class="uil uil-calendar-alt"></i></div></div></div>
         </div>
 
         <div class="charts-grid chart-palette">
@@ -259,6 +330,10 @@
                 const map = { todo: 'To do', in_progress: 'In progress', review: 'In review', completed: 'Completed' };
                 return map[k] || titleize(k);
             }
+            if (kind === 'attendance') {
+                const map = { met_minimum: 'Met minimum', in_progress: 'In progress', no_meetings: 'No meetings' };
+                return map[k] || titleize(k);
+            }
             const map = { not_started: 'Not started', submitted: 'Submitted', approved: 'Approved', changes_requested: 'Changes requested' };
             return map[k] || titleize(k);
         };
@@ -282,6 +357,8 @@
         const renderPie = (mount, kind, dataMap) => {
             const order = kind === 'tasks'
                 ? { completed: 1, review: 2, in_progress: 3, todo: 4 }
+                : kind === 'attendance'
+                    ? { met_minimum: 1, in_progress: 2, no_meetings: 3 }
                 : { approved: 1, submitted: 2, changes_requested: 3, not_started: 4 };
 
             const data = parseMap(dataMap)
@@ -331,8 +408,8 @@
                 offset += dash;
             });
 
-            const primaryKey = kind === 'tasks' ? 'completed' : 'approved';
-            const primaryLabel = kind === 'tasks' ? 'Done' : 'Approved';
+            const primaryKey = kind === 'tasks' ? 'completed' : (kind === 'attendance' ? 'met_minimum' : 'approved');
+            const primaryLabel = kind === 'tasks' ? 'Done' : (kind === 'attendance' ? 'Met minimum' : 'Approved');
             const primaryValue = data.find((d) => d.key === primaryKey)?.value ?? 0;
             const primaryPct = Math.round((primaryValue / total) * 100);
 
@@ -383,50 +460,44 @@
 
             data.sort((a, b) => b.value - a.value);
             const max = Math.max(...data.map((d) => d.value), 1);
-            const rowH = 22;
-            const pad = 12;
-            const h = pad * 2 + data.length * rowH;
-            const w = 520;
-            const labelW = 170;
-            const barW = w - labelW - pad * 2 - 40;
+            const total = data.reduce((sum, d) => sum + d.value, 0);
+            const top = data[0];
 
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-            svg.setAttribute('class', 'bar-svg');
-            svg.setAttribute('role', 'img');
-            svg.setAttribute('aria-label', 'Bar chart');
+            const header = el('div', { class: 'line-footer', style: 'margin-bottom:12px' }, [
+                el('div', { class: 'mini-metric' }, [
+                    el('div', { class: 'k' }, [document.createTextNode('Top Skill')]),
+                    el('div', { class: 'v' }, [document.createTextNode(String(top.key))]),
+                    el('div', { class: 's' }, [document.createTextNode(`${top.value} mentions`)]),
+                ]),
+                el('div', { class: 'mini-metric' }, [
+                    el('div', { class: 'k' }, [document.createTextNode('Tracked Skills')]),
+                    el('div', { class: 'v' }, [document.createTextNode(String(data.length))]),
+                    el('div', { class: 's' }, [document.createTextNode('Visible in this chart')]),
+                ]),
+                el('div', { class: 'mini-metric' }, [
+                    el('div', { class: 'k' }, [document.createTextNode('Total Mentions')]),
+                    el('div', { class: 'v' }, [document.createTextNode(String(total))]),
+                    el('div', { class: 's' }, [document.createTextNode('All counted submissions')]),
+                ]),
+            ]);
 
+            const list = el('div', { class: 'rank-list' });
             data.forEach((d, i) => {
-                const y = pad + i * rowH;
-                const pct = d.value / max;
-                const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                bar.setAttribute('x', String(labelW));
-                bar.setAttribute('y', String(y + 3));
-                bar.setAttribute('width', String(Math.round(barW * pct)));
-                bar.setAttribute('height', '14');
-                bar.setAttribute('rx', '7');
-                bar.setAttribute('fill', palette[i % palette.length]);
-                svg.appendChild(bar);
-
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                label.setAttribute('x', String(0));
-                label.setAttribute('y', String(y + 14));
-                label.setAttribute('fill', 'var(--text)');
-                label.setAttribute('font-size', '12');
-                label.textContent = String(d.key);
-                svg.appendChild(label);
-
-                const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                val.setAttribute('x', String(labelW + barW + 10));
-                val.setAttribute('y', String(y + 14));
-                val.setAttribute('fill', 'var(--text-muted)');
-                val.setAttribute('font-size', '12');
-                val.textContent = String(d.value);
-                svg.appendChild(val);
+                const pct = Math.max(6, Math.round((d.value / max) * 100));
+                const fill = `linear-gradient(90deg, ${palette[i % palette.length]}, ${palette[(i + 1) % palette.length]})`;
+                list.appendChild(el('div', { class: 'rank-row' }, [
+                    el('div', { class: 'rank-num' }, [document.createTextNode(String(i + 1))]),
+                    el('div', { class: 'rank-track' }, [
+                        el('div', { class: 'rank-fill', style: `width:${pct}%;background:${fill}` }),
+                        el('div', { class: 'rank-name', title: String(d.key) }, [document.createTextNode(String(d.key))]),
+                    ]),
+                    el('div', { class: 'rank-value' }, [document.createTextNode(String(d.value))]),
+                ]));
             });
 
             mount.innerHTML = '';
-            mount.appendChild(svg);
+            mount.appendChild(header);
+            mount.appendChild(list);
         };
 
         const renderLine = (mount, seriesRaw) => {
@@ -438,7 +509,7 @@
             }
 
             const w = 640;
-            const h = 200;
+            const h = 220;
             const padX = 18;
             const padY = 22;
             const innerW = w - padX * 2;
@@ -469,6 +540,36 @@
                 return { x, y, v, label: String(p.label ?? '') };
             });
 
+            const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            const areaPoints = [
+                `${points[0].x},${padY + innerH}`,
+                ...points.map((p) => `${p.x},${p.y}`),
+                `${points[points.length - 1].x},${padY + innerH}`,
+            ].join(' ');
+            area.setAttribute('points', areaPoints);
+            area.setAttribute('fill', 'rgba(79,140,255,0.12)');
+            svg.appendChild(area);
+
+            [0, 25, 50, 75, 100].forEach((mark) => {
+                const y = padY + (1 - mark / 100) * innerH;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', String(padX));
+                line.setAttribute('x2', String(padX + innerW));
+                line.setAttribute('y1', String(y));
+                line.setAttribute('y2', String(y));
+                line.setAttribute('stroke', 'var(--border)');
+                line.setAttribute('stroke-dasharray', '4 4');
+                svg.appendChild(line);
+
+                const markText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                markText.setAttribute('x', String(padX + 6));
+                markText.setAttribute('y', String(y - 4));
+                markText.setAttribute('fill', 'var(--text-muted)');
+                markText.setAttribute('font-size', '10');
+                markText.textContent = `${mark}%`;
+                svg.appendChild(markText);
+            });
+
             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
             poly.setAttribute('fill', 'none');
             poly.setAttribute('stroke', 'var(--c1)');
@@ -480,9 +581,27 @@
                 const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 dot.setAttribute('cx', String(p.x));
                 dot.setAttribute('cy', String(p.y));
-                dot.setAttribute('r', '4');
+                dot.setAttribute('r', '4.5');
                 dot.setAttribute('fill', 'var(--c2)');
                 svg.appendChild(dot);
+
+                const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                ring.setAttribute('cx', String(p.x));
+                ring.setAttribute('cy', String(p.y));
+                ring.setAttribute('r', '7');
+                ring.setAttribute('fill', 'transparent');
+                ring.setAttribute('stroke', 'rgba(34,197,94,0.25)');
+                svg.appendChild(ring);
+
+                const val = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                val.setAttribute('x', String(p.x));
+                val.setAttribute('y', String(p.y - 10));
+                val.setAttribute('text-anchor', 'middle');
+                val.setAttribute('fill', 'var(--text)');
+                val.setAttribute('font-size', '10');
+                val.setAttribute('font-weight', '700');
+                val.textContent = `${p.v}%`;
+                svg.appendChild(val);
 
                 if (n <= 6 || i % 2 === 0) {
                     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');

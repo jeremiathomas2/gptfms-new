@@ -16,6 +16,7 @@ use App\Http\Controllers\GroupSettingsController;
 use App\Http\Controllers\UserImportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PasswordResetOtpController;
+use App\Http\Controllers\AttendanceController;
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -52,6 +53,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/messages/chats', [MessageController::class, 'getChats']);
     Route::get('/messages/{type}/{id}', [MessageController::class, 'getMessages']);
     Route::post('/messages', [MessageController::class, 'send'])->name('messages.send');
+
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
+    Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('/attendance/report/download', [AttendanceController::class, 'downloadReport'])->name('attendance.report.download');
 
     Route::get('/reports', [AnalyticsController::class, 'index'])->name('reports');
 

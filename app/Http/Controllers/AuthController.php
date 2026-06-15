@@ -122,8 +122,13 @@ class AuthController extends Controller
                 return redirect()->route('survey.index')
                     ->with('success', 'Registration successful! Please complete the skills assessment survey.');
             } else {
-                return redirect()->route('settings')
-                    ->with('success', 'Registration successful! Please complete your supervisor profile.');
+                $user->supervisorProfile()->firstOrCreate(
+                    ['user_id' => $user->id],
+                    ['is_available' => true]
+                );
+
+                return redirect()->route('survey.index')
+                    ->with('success', 'Registration successful! Please complete the professionalism survey.');
             }
 
         } catch (\Exception $e) {
